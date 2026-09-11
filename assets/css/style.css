@@ -48,6 +48,11 @@
 
 /* --- Reset ---------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
+
+/* The hidden attribute must beat any display rule below, or elements the
+   JavaScript hides (the order form after submitting, the address field for
+   self-collection) stay on screen. */
+[hidden] { display: none !important; }
 body, h1, h2, h3, h4, p, figure, blockquote, ul, ol, dl, dd { margin: 0; }
 ul[class], ol[class] { list-style: none; padding: 0; }
 img { max-width: 100%; display: block; }

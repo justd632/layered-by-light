@@ -8,7 +8,9 @@ window.LBL_PRODUCTS = {
     "tagline": "Handcrafted 3D-printed keepsakes, made to order",
     "email": "TODO@layeredbylight.com",
     "whatsapp": "+65 0000 0000",
-    "paynowId": "REPLACE-WITH-PAYNOW-UEN-OR-NUMBER"
+    "paynowId": "REPLACE-WITH-PAYNOW-UEN-OR-NUMBER",
+    "orderEndpoint": "",
+    "_orderEndpointNote": "Paste your Google Apps Script /exec URL here - see scripts/google-apps-script.gs. While this is empty, customers are asked to email their order instead."
   },
   "categories": [
     {

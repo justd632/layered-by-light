@@ -72,26 +72,43 @@ Nothing below that block hardcodes a colour.
 
 ---
 
-## How an order currently reaches you
+## How an order reaches you
 
-No payment is taken on the site. When a customer submits an order they get an
-order reference (`LBL-260911-A4F2`) and a summary, with buttons to send it to
-you by email or WhatsApp. You reply with PayNow instructions and a proof.
+Orders are submitted to a Google Apps Script, which:
+
+1. adds a row to your **Orders** spreadsheet,
+2. emails **you** the full order, and
+3. emails the **customer** their confirmation, reference and what happens next.
+
+No payment is taken on the site. You reply with PayNow instructions and a proof.
+
+**Setup is in `scripts/google-apps-script.gs`** — the steps are at the top of
+that file. Once deployed, paste the `/exec` URL into `data/products.json` as
+`shop.orderEndpoint` and run `node scripts/build.js`.
+
+Until that URL is set — or if Google is ever unreachable — the site falls back
+to showing the customer an email button, and **their order stays in their
+basket** so nothing is lost.
+
+### Your order spreadsheet
+
+Each order arrives as a row with a **Status** column set to `New`. Change it as
+you go — `Paid`, `Proof sent`, `Printing`, `Posted` — and the sheet doubles as
+your fulfilment tracker. Add your own columns freely; the script only ever
+appends rows, it never rewrites what you have typed.
+
+**Photo uploads:** the site records the *filename* only. The customer's
+confirmation email asks them to reply with the photo attached, quoting their
+reference, so photos land in your inbox on the same thread.
 
 **Before going live, replace these placeholders:**
 
 - `data/products.json` → `shop.email`, `shop.whatsapp`, `shop.paynowId`
+- `scripts/google-apps-script.gs` → `OWNER_EMAIL`
 - `about.html` → your real story
 - `faq.html` → your real lead times, delivery rates and policies
 - `assets/images/products/` → real product photography
 - the email address in the footer of each page
-
-**Photo uploads:** the site records the *filename* the customer chose and asks
-them to send the photo with their order reference. Storing the actual file
-needs a backend — worth adding once orders are steady.
-
-To automate orders later, set `ORDER_ENDPOINT` at the top of
-`assets/js/order.js` to a form-handler URL.
 
 ---
 

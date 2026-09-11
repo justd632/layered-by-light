@@ -1,31 +1,29 @@
 /* ==========================================================================
    Layered by Light — order page
-   Renders the basket, validates buyer details, produces an order reference
-   and a plain-text order summary.
+   Renders the basket, validates buyer details, posts the order to the
+   Google Apps Script receiver, and confirms.
 
-   >>> TODO (Justin): ORDER_ENDPOINT is empty, so orders are not sent
-   anywhere automatically yet. With it empty, the customer is given their
-   order summary plus buttons to send it by email or WhatsApp — which is
-   enough to take real orders from day one.
-   When you are ready to automate it, set ORDER_ENDPOINT to a form handler
-   URL (Formspree, Netlify Forms, or your own) and the same summary will be
-   POSTed there instead.
+   The endpoint lives in data/products.json under shop.orderEndpoint.
+   See scripts/google-apps-script.gs for how to create it.
+
+   If the endpoint is missing or the send fails, the customer is given an
+   email button instead and THE BASKET IS KEPT, so an order is never lost.
    ========================================================================== */
 (function (global) {
   'use strict';
 
-  var ORDER_ENDPOINT = '';
-
   var LBL = global.LBL;
   var shop = (LBL && LBL.data && LBL.data.shop) || {};
+  var ENDPOINT = shop.orderEndpoint || '';
+
+  var submitting = false;
 
   function orderReference() {
     var d = new Date();
     var stamp = String(d.getFullYear()).slice(2) +
       String(d.getMonth() + 1).padStart(2, '0') +
       String(d.getDate()).padStart(2, '0');
-    var rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-    return 'LBL-' + stamp + '-' + rand;
+    return 'LBL-' + stamp + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
   }
 
   /* --- basket rendering -------------------------------------------------- */
@@ -102,71 +100,120 @@
     return ok;
   }
 
-  /* --- summary ----------------------------------------------------------- */
+  /* --- payload ----------------------------------------------------------- */
 
-  function buildSummary(form, ref, items) {
-    var lines = [];
-    lines.push('ORDER ' + ref);
-    lines.push('Layered by Light');
-    lines.push('');
-    lines.push('CUSTOMER');
-    lines.push('Name: ' + form.buyerName.value.trim());
-    lines.push('Email: ' + form.buyerEmail.value.trim());
-    lines.push('Phone: ' + form.buyerPhone.value.trim());
-    lines.push('Delivery: ' + (form.deliveryMethod.value === 'delivery' ? 'Deliver to address' : 'Self-collection'));
-    if (form.deliveryMethod.value === 'delivery') lines.push('Address: ' + form.address.value.trim());
-    if (form.neededBy.value) lines.push('Needed by: ' + form.neededBy.value);
-    lines.push('Gift: ' + (form.isGift.value === 'yes' ? 'Yes - send directly to recipient' : 'No'));
-    if (form.notes.value.trim()) lines.push('Notes: ' + form.notes.value.trim());
-    lines.push('');
-    lines.push('PIECES');
-    items.forEach(function (line, i) {
-      lines.push((i + 1) + '. ' + line.name + ' - ' + LBL.money(line.price));
-      (line.options || []).forEach(function (o) {
-        lines.push('   ' + o.label + ': ' + (o.valueLabel || o.value));
-      });
-    });
-    lines.push('');
-    lines.push('SUBTOTAL: ' + LBL.money(LBL.basket.total()) + ' (delivery not included)');
-    return lines.join('\n');
+  function buildOrder(form, ref, items) {
+    return {
+      reference: ref,
+      placedAt: new Date().toISOString(),
+      customer: {
+        name: form.buyerName.value.trim(),
+        email: form.buyerEmail.value.trim(),
+        phone: form.buyerPhone.value.trim()
+      },
+      delivery: {
+        method: form.deliveryMethod.value,
+        address: form.deliveryMethod.value === 'delivery' ? form.address.value.trim() : '',
+        neededBy: form.neededBy.value || '',
+        isGift: form.isGift.value === 'yes'
+      },
+      notes: form.notes.value.trim(),
+      items: items.map(function (l) {
+        return {
+          name: l.name, price: l.price, leadTime: l.leadTime,
+          options: (l.options || []).map(function (o) {
+            return { label: o.label, value: o.valueLabel || o.value, type: o.type };
+          })
+        };
+      }),
+      subtotal: LBL.basket.total(),
+      photosExpected: items.some(function (l) {
+        return (l.options || []).some(function (o) { return o.type === 'file'; });
+      })
+    };
   }
 
-  function showSuccess(ref, summary, hasPhotos) {
-    var host = document.querySelector('[data-order-success]');
+  function summaryText(order) {
+    var out = ['ORDER ' + order.reference, shop.name || 'Layered by Light', '', 'CUSTOMER'];
+    out.push('Name: ' + order.customer.name);
+    out.push('Email: ' + order.customer.email);
+    out.push('Phone: ' + order.customer.phone);
+    out.push('Delivery: ' + (order.delivery.method === 'delivery' ? 'Deliver to address' : 'Self-collection'));
+    if (order.delivery.address) out.push('Address: ' + order.delivery.address);
+    if (order.delivery.neededBy) out.push('Needed by: ' + order.delivery.neededBy);
+    out.push('Gift: ' + (order.delivery.isGift ? 'Yes - send directly to recipient' : 'No'));
+    if (order.notes) out.push('Notes: ' + order.notes);
+    out.push('', 'PIECES');
+    order.items.forEach(function (item, i) {
+      out.push((i + 1) + '. ' + item.name + ' - $' + Number(item.price).toFixed(2));
+      item.options.forEach(function (o) { out.push('   ' + o.label + ': ' + o.value); });
+    });
+    out.push('', 'SUBTOTAL: $' + Number(order.subtotal).toFixed(2) + ' (delivery not included)');
+    return out.join('\n');
+  }
+
+  /* --- result screens ---------------------------------------------------- */
+
+  function hideForm() {
     var main = document.querySelector('.split');
     if (main) main.hidden = true;
+  }
 
+  function summaryDetails(text) {
+    return '<details><summary class="small muted">View your full order details</summary>' +
+      '<textarea rows="14" readonly style="margin-top: var(--sp-3);">' + LBL.escapeHtml(text) + '</textarea>' +
+      '</details>';
+  }
+
+  function showSent(order, text) {
+    hideForm();
+    var host = document.querySelector('[data-order-success]');
+    host.hidden = false;
+    host.innerHTML = '' +
+      '<div class="panel stack">' +
+        '<p class="badge">Order ' + LBL.escapeHtml(order.reference) + '</p>' +
+        '<h2>Thank you — we have your order</h2>' +
+        '<p class="muted">A copy is on its way to <strong>' + LBL.escapeHtml(order.customer.email) + '</strong>. ' +
+          'If it does not arrive within a few minutes, check your spam folder.</p>' +
+        '<h3>What happens next</h3>' +
+        '<ol class="steps">' +
+          '<li><div><h3>We confirm and send payment details</h3><p class="muted small">You will get PayNow instructions and the delivery cost.</p></div></li>' +
+          '<li><div><h3>We send you a proof</h3><p class="muted small">A mock-up of your piece. Nothing is printed until you approve it.</p></div></li>' +
+          '<li><div><h3>We make it and post it</h3><p class="muted small">Made in ' + LBL.escapeHtml(order.items[0].leadTime || 'a few working days') + ' from the day you approve.</p></div></li>' +
+        '</ol>' +
+        (order.photosExpected
+          ? '<p class="note note--warn"><strong>One thing left to do:</strong> your order includes a photo. ' +
+            'Reply to your confirmation email with the photo attached, and we will take it from there.</p>'
+          : '') +
+        summaryDetails(text) +
+        '<p><a class="btn btn--ghost" href="shop.html">Back to the shop</a></p>' +
+      '</div>';
+    host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function showFallback(order, text, reason) {
+    hideForm();
+    var host = document.querySelector('[data-order-success]');
     var mailto = 'mailto:' + (shop.email || '') +
-      '?subject=' + encodeURIComponent('Order ' + ref) +
-      '&body=' + encodeURIComponent(summary);
-    var wa = 'https://wa.me/' + String(shop.whatsapp || '').replace(/[^0-9]/g, '') +
-      '?text=' + encodeURIComponent(summary);
+      '?subject=' + encodeURIComponent('Order ' + order.reference) +
+      '&body=' + encodeURIComponent(text);
 
     host.hidden = false;
     host.innerHTML = '' +
       '<div class="panel stack">' +
-        '<p class="badge">Order ' + LBL.escapeHtml(ref) + '</p>' +
-        '<h2>Almost there — send us your order</h2>' +
-        '<p class="muted">Your order is not with us yet. Send the summary below using either button, and we will reply with your PayNow payment instructions and a proof of your piece.</p>' +
-        (hasPhotos ? '<p class="note note--warn">Your order includes a photo. Please attach the photo file to your email or WhatsApp message, quoting ' + LBL.escapeHtml(ref) + '.</p>' : '') +
-        '<p>' +
-          '<a class="btn btn--primary" href="' + mailto + '">Send by email</a> ' +
-          (shop.whatsapp ? '<a class="btn btn--ghost" href="' + wa + '" target="_blank" rel="noopener">Send by WhatsApp</a>' : '') +
-        '</p>' +
-        '<h3>Your order summary</h3>' +
-        '<textarea rows="16" readonly data-summary-text>' + LBL.escapeHtml(summary) + '</textarea>' +
-        '<button type="button" class="btn btn--ghost" data-copy>Copy summary</button>' +
-        '<p class="field__help">Keep your order reference — quote it in any message to us.</p>' +
+        '<p class="badge">Order ' + LBL.escapeHtml(order.reference) + '</p>' +
+        '<h2>Almost there — one more tap</h2>' +
+        '<p class="note note--warn">We could not submit your order automatically' +
+          (reason ? ' (' + LBL.escapeHtml(reason) + ')' : '') +
+          '. Nothing is lost — send it to us with the button below and we will pick it up from there.</p>' +
+        '<p><a class="btn btn--primary" href="' + mailto + '">Send my order by email</a></p>' +
+        summaryDetails(text) +
+        '<p class="field__help">Your order is still saved in this browser, so you can also try again later.</p>' +
+        '<p><button type="button" class="btn btn--ghost" data-retry>Try submitting again</button></p>' +
       '</div>';
 
-    var copyBtn = host.querySelector('[data-copy]');
-    copyBtn.addEventListener('click', function () {
-      var ta = host.querySelector('[data-summary-text]');
-      ta.select();
-      try { document.execCommand('copy'); copyBtn.textContent = 'Copied'; }
-      catch (err) { copyBtn.textContent = 'Press Cmd+C to copy'; }
-    });
-
+    var retry = host.querySelector('[data-retry]');
+    if (retry) retry.addEventListener('click', function () { global.location.reload(); });
     host.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -174,8 +221,11 @@
 
   function handleSubmit(event) {
     event.preventDefault();
+    if (submitting) return;
+
     var form = event.target;
     var errNode = document.querySelector('[data-order-error]');
+    var button = form.querySelector('button[type="submit"]');
 
     if (!validateForm(form)) {
       if (errNode) { errNode.textContent = 'Please check the highlighted fields.'; errNode.hidden = false; }
@@ -186,22 +236,37 @@
     var items = LBL.basket.read();
     if (!items.length) return;
 
-    var ref = orderReference();
-    var summary = buildSummary(form, ref, items);
-    var hasPhotos = items.some(function (l) {
-      return (l.options || []).some(function (o) { return o.type === 'file'; });
-    });
+    var order = buildOrder(form, orderReference(), items);
+    var text = summaryText(order);
 
-    if (ORDER_ENDPOINT) {
-      fetch(ORDER_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference: ref, summary: summary, items: items })
-      }).catch(function () { /* fall through to manual send either way */ });
+    if (!ENDPOINT) {
+      showFallback(order, text, 'ordering is not connected yet');
+      return;
     }
 
-    showSuccess(ref, summary, hasPhotos);
-    LBL.basket.clear();
+    submitting = true;
+    var original = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Sending your order…';
+
+    // Sent as a plain string body so the browser uses text/plain and skips the
+    // CORS preflight, which Apps Script web apps do not answer.
+    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify(order), redirect: 'follow' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('server responded ' + res.status);
+        // The order reached the script; clearing is now safe.
+        LBL.basket.clear();
+        showSent(order, text);
+      })
+      .catch(function (err) {
+        showFallback(order, text, 'connection problem');
+        if (global.console) global.console.error('Order submission failed:', err);
+      })
+      .then(function () {
+        submitting = false;
+        button.disabled = false;
+        button.textContent = original;
+      });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
