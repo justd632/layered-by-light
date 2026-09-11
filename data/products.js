@@ -9,8 +9,7 @@ window.LBL_PRODUCTS = {
     "email": "TODO@layeredbylight.com",
     "whatsapp": "+65 0000 0000",
     "paynowId": "REPLACE-WITH-PAYNOW-UEN-OR-NUMBER",
-    "orderEndpoint": "",
-    "_orderEndpointNote": "Paste your Google Apps Script /exec URL here - see scripts/google-apps-script.gs. While this is empty, customers are asked to email their order instead."
+    "orderEndpoint": "https://script.google.com/macros/s/AKfycbyM-NjamMMQFQ7-8lLN70sai-Vnrwvkbf1Fx7d7OlUlBAVuF54e6cgRzfzOgsr9Khh1Fw/exec"
   },
   "categories": [
     {
