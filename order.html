@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Order — Layered by Light</title>
+<meta name="description" content="Review your personalised pieces and send your order.">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="logo" href="index.html">Layered by <span>Light</span></a>
+    <nav class="nav">
+      <a href="index.html">Home</a><a href="shop.html">Shop</a>
+      <a href="about.html">About</a><a href="faq.html">FAQ</a>
+      <a class="basket-link" href="order.html" aria-current="page">Order <span class="basket-count" data-basket-count hidden>0</span></a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="wrap">
+      <p class="eyebrow">Step 2 of 4</p>
+      <h1>Your order</h1>
+      <p class="muted prose">Check your personalisation details carefully — pieces are printed exactly as written here. You will still see a proof before anything is made.</p>
+
+      <div class="split mt-6">
+
+        <div>
+          <h2>Your pieces</h2>
+          <div data-basket-list><p class="muted">Loading…</p></div>
+          <div class="panel mt-6" data-basket-total hidden>
+            <div class="price-row"><span>Subtotal</span><span class="price-total" data-total>$0.00</span></div>
+            <p class="field__help">Delivery is confirmed with your payment instructions.</p>
+          </div>
+        </div>
+
+        <div data-order-form-host>
+          <h2>Your details</h2>
+          <form class="panel stack" data-order-form novalidate>
+
+            <div class="field">
+              <label class="field__label" for="buyerName">Your name <span class="field__req">*</span></label>
+              <input type="text" id="buyerName" name="buyerName" required>
+              <p class="field__error" data-error-for="buyerName" hidden></p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="buyerEmail">Email <span class="field__req">*</span></label>
+              <input type="email" id="buyerEmail" name="buyerEmail" required>
+              <p class="field__help">Your proof and payment instructions go here.</p>
+              <p class="field__error" data-error-for="buyerEmail" hidden></p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="buyerPhone">Phone / WhatsApp <span class="field__req">*</span></label>
+              <input type="tel" id="buyerPhone" name="buyerPhone" required>
+              <p class="field__error" data-error-for="buyerPhone" hidden></p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="deliveryMethod">Delivery <span class="field__req">*</span></label>
+              <select id="deliveryMethod" name="deliveryMethod" required>
+                <option value="delivery">Deliver to an address</option>
+                <option value="collection">Self-collection (by arrangement)</option>
+              </select>
+            </div>
+
+            <div class="field" data-address-field>
+              <label class="field__label" for="address">Delivery address <span class="field__req">*</span></label>
+              <textarea id="address" name="address"></textarea>
+              <p class="field__error" data-error-for="address" hidden></p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="neededBy">Needed by (optional)</label>
+              <input type="date" id="neededBy" name="neededBy">
+              <p class="field__help">If you have a deadline, tell us now. We will confirm whether it is possible before taking payment.</p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="isGift">Is this a gift?</label>
+              <select id="isGift" name="isGift">
+                <option value="no">No</option>
+                <option value="yes">Yes — send it directly to the recipient</option>
+              </select>
+              <p class="field__help">Gift parcels never include prices or invoices.</p>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="notes">Anything else we should know?</label>
+              <textarea id="notes" name="notes"></textarea>
+            </div>
+
+            <p class="field__error" data-order-error hidden></p>
+            <button type="submit" class="btn btn--primary btn--block">Send my order</button>
+            <p class="field__help">No payment is taken on this site. You will receive PayNow instructions once we confirm your order.</p>
+          </form>
+        </div>
+
+      </div>
+
+      <div data-order-success hidden></div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap site-footer__grid">
+    <div><h4>Layered by Light</h4><p>Handcrafted 3D-printed Christian keepsakes, made to order in Singapore.</p></div>
+    <div><h4>Shop</h4><ul><li><a href="shop.html">All products</a></li><li><a href="order.html">Your order</a></li><li><a href="faq.html">Lead times &amp; delivery</a></li></ul></div>
+    <div><h4>Contact</h4><ul><li><a href="mailto:hello@layeredbylight.com">hello@layeredbylight.com</a></li><li><a href="faq.html">Frequently asked questions</a></li></ul></div>
+  </div>
+</footer>
+
+<script src="data/products.js"></script>
+<script src="assets/js/site.js"></script>
+<script src="assets/js/order.js"></script>
+</body>
+</html>
