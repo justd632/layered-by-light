@@ -1,3 +1,12 @@
+# macOS
 .DS_Store
+
+# Working files kept in this folder but NOT part of the website.
+# The repo is public — anything committed here is visible to anyone.
+# Your cost calculator shows your margins, so it stays out of git.
+Claude outputs/
+*.pdf
+*.xlsx
+*.csv
 *.tgz
 node_modules/
