@@ -27,8 +27,8 @@
     },
     {
       "id": "bookmarks",
-      "name": "Bookmarks",
-      "description": "Slim printed bookmarks for Bibles, journals and devotionals."
+      "name": "Bookmarks & Bible Accessories",
+      "description": "Slim pieces for Bibles, journals and devotionals."
     },
     {
       "id": "keychains",
@@ -327,33 +327,34 @@
       ]
     },
     {
-      "id": "bookmark-cute",
-      "slug": "cute-bookmark",
-      "name": "Cute Bookmark",
+      "id": "bookmark-breadclip-verse",
+      "slug": "breadclip-bookmark-with-verse",
+      "name": "Breadclip Bookmark with Verse",
       "category": "bookmarks",
-      "price": 3.5,
+      "price": 4,
       "leadTime": "3-5 working days",
-      "shortDescription": "A slim printed bookmark, personalised with a name.",
-      "description": "A lightweight printed bookmark, slim enough to sit comfortably in a Bible or journal without splaying the spine.",
+      "featured": true,
+      "shortDescription": "The breadclip bookmark, carrying a verse of your choosing.",
+      "description": "Shaped like the humble bread tag so it clips onto the page rather than sitting loose in it - and printed with the verse you want to keep coming back to.",
       "images": [
         "assets/images/products/placeholder-bookmark.svg"
       ],
       "options": [
         {
+          "id": "verseRef",
+          "type": "text",
+          "label": "Verse reference",
+          "maxLength": 24,
+          "required": true,
+          "placeholder": "e.g. Psalm 23:1"
+        },
+        {
           "id": "nameText",
           "type": "text",
           "label": "Name (optional)",
-          "maxLength": 16,
+          "maxLength": 14,
           "required": false,
-          "help": "Leave blank for no name."
-        },
-        {
-          "id": "verseRef",
-          "type": "text",
-          "label": "Verse reference (optional)",
-          "maxLength": 24,
-          "required": false,
-          "placeholder": "e.g. Psalm 23:1"
+          "help": "Space is tight on a clip - short words work best."
         },
         {
           "id": "colour",
@@ -386,7 +387,7 @@
       "slug": "breadclip-bookmark",
       "name": "Breadclip Bookmark",
       "category": "bookmarks",
-      "price": 3.5,
+      "price": 3,
       "leadTime": "3-5 working days",
       "shortDescription": "A bookmark shaped like a breadclip, clipping neatly onto the page.",
       "description": "Shaped like the humble bread tag, this bookmark clips onto the page rather than sitting loose in it - so it stays exactly where you left off.",
@@ -401,6 +402,52 @@
           "maxLength": 14,
           "required": false,
           "help": "Space is tight on a clip - short words work best."
+        },
+        {
+          "id": "colour",
+          "type": "select",
+          "label": "Colour",
+          "required": true,
+          "choices": [
+            {
+              "value": "cream",
+              "label": "Cream"
+            },
+            {
+              "value": "gold",
+              "label": "Gold"
+            },
+            {
+              "value": "navy",
+              "label": "Navy"
+            },
+            {
+              "value": "burgundy",
+              "label": "Burgundy"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bible-opener",
+      "slug": "bible-opener",
+      "name": "Bible Opener",
+      "category": "bookmarks",
+      "price": 2.5,
+      "leadTime": "3-5 working days",
+      "shortDescription": "A slim tool for turning thin Bible pages cleanly.",
+      "description": "Thin Bible paper is difficult to turn without creasing or catching two pages at once. This slim opener slides between the pages and lifts one cleanly.",
+      "images": [
+        "assets/images/products/placeholder-bookmark.svg"
+      ],
+      "options": [
+        {
+          "id": "nameText",
+          "type": "text",
+          "label": "Name (optional)",
+          "maxLength": 14,
+          "required": false
         },
         {
           "id": "colour",
@@ -586,10 +633,6 @@
           "required": true,
           "choices": [
             {
-              "value": "cute-purple",
-              "label": "Cute (purple)"
-            },
-            {
               "value": "tennis",
               "label": "Tennis ball"
             },
@@ -599,7 +642,8 @@
             }
           ]
         }
-      ]
+      ],
+      "_priceUnconfirmed": "Price cell is blank in the cost calculator. $5 carried over from the previous version - CONFIRM OR CORRECT."
     }
   ]
 }
