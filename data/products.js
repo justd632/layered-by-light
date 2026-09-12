@@ -6,7 +6,7 @@ window.LBL_PRODUCTS = {
   "shop": {
     "name": "Layered by Light",
     "tagline": "Handcrafted 3D-printed keepsakes, made to order",
-    "email": "TODO@layeredbylight.com",
+    "email": "layeredbylightsg@gmail.com",
     "whatsapp": "+65 0000 0000",
     "paynowId": "REPLACE-WITH-PAYNOW-UEN-OR-NUMBER",
     "orderEndpoint": "https://script.google.com/macros/s/AKfycbyM-NjamMMQFQ7-8lLN70sai-Vnrwvkbf1Fx7d7OlUlBAVuF54e6cgRzfzOgsr9Khh1Fw/exec",
