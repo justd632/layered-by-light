@@ -15,6 +15,7 @@
   'use strict';
 
   var LBL = global.LBL;
+  var MAX_PHOTO_BYTES = 5 * 1024 * 1024;
   var form, product, priceNode, errorSummary;
 
   function fieldHtml(opt) {
@@ -115,10 +116,13 @@
     (product.options || []).forEach(function (opt) {
       var input = form.querySelector('[data-option-id="' + opt.id + '"]');
       if (!input) return;
-      var value = opt.type === 'file' ? (input.files && input.files.length ? input.files[0].name : '') : input.value.trim();
+      var file = opt.type === 'file' && input.files && input.files.length ? input.files[0] : null;
+      var value = opt.type === 'file' ? (file ? file.name : '') : input.value.trim();
       var message = '';
       var limit = limitFor(opt);
       if (opt.required && !value) message = 'Please fill this in.';
+      else if (file && !/^image\//.test(file.type)) message = 'That is not an image. Please choose a photo.';
+      else if (file && file.size > MAX_PHOTO_BYTES) message = 'That photo is larger than 5MB. Please choose a smaller one.';
       else if (limit && value.length > limit) message = 'Please keep this to ' + limit + ' characters.';
       showError(opt.id, message);
       if (message) { ok = false; firstBad = firstBad || input; }
@@ -134,7 +138,7 @@
       var value, valueLabel;
       if (opt.type === 'file') {
         value = input.files && input.files.length ? input.files[0].name : '';
-        valueLabel = value ? value + ' (to be sent separately)' : '';
+        valueLabel = value;
       } else if (opt.type === 'select') {
         value = input.value;
         var chosen = input.options[input.selectedIndex];
@@ -156,23 +160,49 @@
     }
     if (errorSummary) errorSummary.hidden = true;
 
-    LBL.basket.add({
-      productId: product.id,
-      name: product.name,
-      slug: product.slug,
-      leadTime: product.leadTime,
-      price: currentPrice(),
-      options: collectOptions()
+    var options = collectOptions();
+    var button = form.querySelector('button[type="submit"]');
+    var originalLabel = button.textContent;
+    button.disabled = true;
+
+    // Photos are stashed in IndexedDB and referenced by key, so they travel
+    // with the order without having to squeeze into localStorage.
+    var stores = options.map(function (o) {
+      if (o.type !== 'file') return Promise.resolve();
+      var input = form.querySelector('[data-option-id="' + o.id + '"]');
+      var file = input && input.files && input.files[0];
+      if (!file) return Promise.resolve();
+      button.textContent = 'Adding your photo…';
+      var key = 'f_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      return LBL.files.readAsBase64(file).then(function (data) {
+        return LBL.files.put(key, { name: file.name, mimeType: file.type, data: data });
+      }).then(function (ok) {
+        if (ok) o.fileKey = key;   // no key means checkout will ask for it again
+      }).catch(function () { /* checkout falls back to asking */ });
     });
 
-    var done = document.querySelector('[data-added-confirm]');
-    if (done) {
-      done.hidden = false;
-      done.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    form.reset();
-    refreshCounters();
-    refreshPrice();
+    Promise.all(stores).then(function () {
+      LBL.basket.add({
+        productId: product.id,
+        name: product.name,
+        slug: product.slug,
+        leadTime: product.leadTime,
+        price: currentPrice(),
+        options: options
+      });
+
+      var done = document.querySelector('[data-added-confirm]');
+      if (done) {
+        done.hidden = false;
+        done.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      form.reset();
+      refreshCounters();
+      refreshPrice();
+    }).then(function () {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function () {

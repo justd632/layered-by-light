@@ -68,7 +68,7 @@
     writeBasket(readBasket().filter(function (l) { return l.lineId !== lineId; }));
   }
 
-  function clearBasket() { writeBasket([]); }
+  function clearBasket() { writeBasket([]); clearFiles(); }
 
   function basketTotal() {
     return readBasket().reduce(function (sum, l) { return sum + Number(l.price || 0); }, 0);
@@ -132,6 +132,66 @@
     }).join('');
   }
 
+  /* --- uploaded files ----------------------------------------------------
+     Customer photos are far too big for localStorage, so the basket stores a
+     key and the file itself lives in IndexedDB until the order is sent.
+     Every call degrades to null rather than throwing: a browser with storage
+     blocked still gets a working basket, and checkout asks for the photo
+     again instead of losing the order.
+     ----------------------------------------------------------------------- */
+
+  var DB_NAME = 'lbl-files', STORE = 'files';
+
+  function openDb() {
+    return new Promise(function (resolve, reject) {
+      if (!global.indexedDB) return reject(new Error('no indexedDB'));
+      var req = global.indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = function () {
+        if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+      };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  function withStore(mode, fn) {
+    return openDb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(STORE, mode);
+        var req = fn(tx.objectStore(STORE));
+        tx.oncomplete = function () { resolve(req && req.result); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+
+  function putFile(key, value) {
+    return withStore('readwrite', function (s) { return s.put(value, key); })
+      .then(function () { return true; })
+      .catch(function () { return false; });
+  }
+
+  function getFile(key) {
+    return withStore('readonly', function (s) { return s.get(key); })
+      .catch(function () { return null; });
+  }
+
+  function clearFiles() {
+    return withStore('readwrite', function (s) { return s.clear(); }).catch(function () { return null; });
+  }
+
+  function readAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var out = String(reader.result || '');
+        resolve(out.slice(out.indexOf(',') + 1));
+      };
+      reader.onerror = function () { reject(new Error('could not read file')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
   /* --- expose ----------------------------------------------------------- */
 
   global.LBL = {
@@ -144,7 +204,8 @@
     basket: {
       read: readBasket, add: addToBasket, remove: removeFromBasket,
       clear: clearBasket, total: basketTotal, refreshCount: updateBasketCount
-    }
+    },
+    files: { put: putFile, get: getFile, clear: clearFiles, readAsBase64: readAsBase64 }
   };
 
   document.addEventListener('DOMContentLoaded', function () {

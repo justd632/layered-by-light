@@ -22,7 +22,8 @@
   var MAX_PROOF_BYTES = 5 * 1024 * 1024;
 
   var submitting = false;
-  var details = null;   // captured from step 1
+  var details = null;     // captured from step 1
+  var photoState = [];    // one entry per file option across the basket
 
   function orderReference() {
     var d = new Date();
@@ -139,6 +140,94 @@
     if (onPayment) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  /* --- customer photos ---------------------------------------------------
+     Photos were stashed in IndexedDB when the piece was added. Here we
+     confirm we still have each one; anything missing is asked for again so
+     an order can never arrive without the picture it needs.
+     ----------------------------------------------------------------------- */
+
+  function photoTargets() {
+    var out = [];
+    LBL.basket.read().forEach(function (item, i) {
+      (item.options || []).forEach(function (opt, j) {
+        if (opt.type === 'file') out.push({ i: i, j: j, opt: opt, item: item });
+      });
+    });
+    return out;
+  }
+
+  function renderPhotoCheck() {
+    var host = document.querySelector('[data-photo-check]');
+    if (!host) return Promise.resolve();
+
+    var targets = photoTargets();
+    if (!targets.length) {
+      host.hidden = true; host.innerHTML = ''; photoState = [];
+      return Promise.resolve();
+    }
+
+    return Promise.all(targets.map(function (t) {
+      return t.opt.fileKey ? LBL.files.get(t.opt.fileKey) : Promise.resolve(null);
+    })).then(function (found) {
+      photoState = targets.map(function (t, k) { return { target: t, stored: found[k] || null }; });
+
+      host.innerHTML = '<h3 style="font-size: var(--fs-base);">Your photos</h3>' +
+        photoState.map(function (entry, k) {
+          var t = entry.target;
+          var who = LBL.escapeHtml(t.opt.label) + ' for ' + LBL.escapeHtml(t.item.name);
+          if (entry.stored && entry.stored.data) {
+            return '<p class="small muted" style="margin-bottom: var(--sp-3);">' + who +
+              ': <strong>' + LBL.escapeHtml(entry.stored.name) + '</strong> — attached &#10003;</p>';
+          }
+          return '<div class="field">' +
+            '<label class="field__label" for="photo-' + k + '">' + who + ' <span class="field__req">*</span></label>' +
+            '<input type="file" id="photo-' + k + '" data-photo-index="' + k + '" accept="image/*">' +
+            '<p class="field__help">We could not find the photo you chose earlier — please attach it again.</p>' +
+            '<p class="field__error" data-error-for="photo-' + k + '" hidden></p>' +
+            '</div>';
+        }).join('');
+      host.hidden = false;
+    });
+  }
+
+  function validatePhotos() {
+    var ok = true;
+    photoState.forEach(function (entry, k) {
+      if (entry.stored && entry.stored.data) return;
+      var input = document.querySelector('[data-photo-index="' + k + '"]');
+      var node = document.querySelector('[data-error-for="photo-' + k + '"]');
+      var file = input && input.files && input.files[0];
+      var message = '';
+      if (!file) message = 'Please attach this photo.';
+      else if (!/^image\//.test(file.type)) message = 'That is not an image.';
+      else if (file.size > MAX_PROOF_BYTES) message = 'That photo is larger than 5MB.';
+      if (node) { node.textContent = message; node.hidden = !message; }
+      if (input) input.classList.toggle('is-invalid', !!message);
+      if (message) ok = false;
+    });
+    return ok;
+  }
+
+  function collectPhotos() {
+    return Promise.all(photoState.map(function (entry, k) {
+      var t = entry.target;
+      var meta = { item: t.item.name, label: t.opt.label };
+      if (entry.stored && entry.stored.data) {
+        meta.name = entry.stored.name;
+        meta.mimeType = entry.stored.mimeType;
+        meta.data = entry.stored.data;
+        return meta;
+      }
+      var input = document.querySelector('[data-photo-index="' + k + '"]');
+      var file = input && input.files && input.files[0];
+      if (!file) return null;
+      return LBL.files.readAsBase64(file).then(function (data) {
+        meta.name = file.name; meta.mimeType = file.type; meta.data = data;
+        return meta;
+      });
+    })).then(function (list) { return list.filter(Boolean); });
+  }
+
   /* --- validation -------------------------------------------------------- */
 
   function setError(name, message) {
@@ -194,7 +283,7 @@
     });
   }
 
-  function buildOrder(ref, items, payment) {
+  function buildOrder(ref, items, payment, photos) {
     return {
       reference: ref,
       placedAt: new Date().toISOString(),
@@ -213,9 +302,7 @@
       shipping: shipping(),
       total: grandTotal(),
       payment: payment,
-      photosExpected: items.some(function (l) {
-        return (l.options || []).some(function (o) { return o.type === 'file'; });
-      })
+      photos: photos || []
     };
   }
 
@@ -269,10 +356,6 @@
           '<li><div><h3>We make it and post it</h3><p class="muted small">Made in ' +
             LBL.escapeHtml(order.items[0].leadTime || 'a few working days') + ' from the day you approve.</p></div></li>' +
         '</ol>' +
-        (order.photosExpected
-          ? '<p class="note note--warn"><strong>One thing left to do:</strong> your order includes a photo. ' +
-            'Reply to your confirmation email with the photo attached and we will take it from there.</p>'
-          : '') +
         summaryDetails(text) +
         '<p><a class="btn btn--ghost" href="shop.html">Back to the shop</a></p>' +
       '</div>';
@@ -313,7 +396,8 @@
     var errNode = document.querySelector('[data-payment-error]');
     var button = form.querySelector('button[type="submit"]');
 
-    if (!validatePayment(form)) {
+    var photosOk = validatePhotos();
+    if (!validatePayment(form) || !photosOk) {
       if (errNode) { errNode.textContent = 'Please check the highlighted fields.'; errNode.hidden = false; }
       return;
     }
@@ -329,13 +413,14 @@
 
     var file = form.paymentProof.files[0];
 
-    readFileAsBase64(file)
-      .then(function (base64) {
+    Promise.all([readFileAsBase64(file), collectPhotos()])
+      .then(function (parts) {
+        var base64 = parts[0], photos = parts[1];
         var order = buildOrder(orderReference(), items, {
           method: 'PayNow',
           reference: form.paynowRef.value.trim(),
           proof: { name: file.name, mimeType: file.type, data: base64 }
-        });
+        }, photos);
         var text = summaryText(order);
 
         if (!ENDPOINT) {
@@ -398,7 +483,7 @@
         notes: detailsForm.notes.value.trim()
       };
       refreshTotals();
-      showStep('payment');
+      renderPhotoCheck().then(function () { showStep('payment'); });
     });
 
     paymentForm.addEventListener('submit', handlePaymentSubmit);

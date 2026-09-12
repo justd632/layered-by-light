@@ -64,14 +64,19 @@ var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots are fil
 function doPost(e) {
   try {
     var order = JSON.parse(e.postData.contents);
-    var proofUrl = '';
+    var proofUrl = '', photos = [];
     try {
       proofUrl = saveProof_(order);       // never lose an order over a bad image
     } catch (proofErr) {
       proofUrl = 'UPLOAD FAILED: ' + proofErr;
     }
-    appendOrderRow_(order, proofUrl);
-    emailOwner_(order, proofUrl);
+    try {
+      photos = savePhotos_(order);
+    } catch (photoErr) {
+      photos = [{ label: 'photo', name: '', url: 'UPLOAD FAILED: ' + photoErr }];
+    }
+    appendOrderRow_(order, proofUrl, photos.map(function (p) { return p.url; }));
+    emailOwner_(order, proofUrl, photos);
     emailCustomer_(order);
     return jsonOut_({ ok: true, reference: order.reference });
   } catch (err) {
@@ -93,7 +98,7 @@ function doGet() {
 
 var HEADERS = [
   'Received', 'Reference', 'Status', 'Name', 'Email', 'Phone', 'Address',
-  'Gift', 'Photo to come', 'Pieces',
+  'Gift', 'Customer photos', 'Pieces',
   'Subtotal (SGD)', 'Shipping (SGD)', 'Total paid (SGD)',
   'PayNow ref', 'Payment screenshot', 'Notes', 'Full order'
 ];
@@ -113,7 +118,7 @@ function sheet_() {
   return sh;
 }
 
-function appendOrderRow_(order, proofUrl) {
+function appendOrderRow_(order, proofUrl, photoUrls) {
   var sh = sheet_();
   var payment = order.payment || {};
   sh.appendRow([
@@ -125,7 +130,7 @@ function appendOrderRow_(order, proofUrl) {
     order.customer.phone,
     order.delivery.address || '',
     order.delivery.isGift ? 'Gift' : '',
-    order.photosExpected ? 'YES' : '',
+    (photoUrls && photoUrls.length) ? photoUrls.join('\n') : '',
     order.items.length,
     Number(order.subtotal),
     Number(order.shipping),
@@ -147,18 +152,35 @@ function folder_() {
   return it.hasNext() ? it.next() : DriveApp.createFolder(DRIVE_FOLDER);
 }
 
-function saveProof_(order) {
-  var proof = order.payment && order.payment.proof;
-  if (!proof || !proof.data) return '';
-  var ext = (proof.name && proof.name.indexOf('.') > -1)
-    ? proof.name.slice(proof.name.lastIndexOf('.'))
+function saveImage_(file, filename) {
+  if (!file || !file.data) return '';
+  var ext = (file.name && file.name.indexOf('.') > -1)
+    ? file.name.slice(file.name.lastIndexOf('.'))
     : '.png';
   var blob = Utilities.newBlob(
-    Utilities.base64Decode(proof.data),
-    proof.mimeType || 'image/png',
-    order.reference + ext
+    Utilities.base64Decode(file.data),
+    file.mimeType || 'image/png',
+    filename + ext
   );
-  return folder_().createFile(blob).getUrl();
+  var saved = folder_().createFile(blob);
+  // Anyone with the link can view, so the links in your email open straight up.
+  try {
+    saved.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (ignored) {}
+  return saved.getUrl();
+}
+
+function saveProof_(order) {
+  return saveImage_(order.payment && order.payment.proof, order.reference + ' payment');
+}
+
+// Photos the customer uploaded for their pieces - lithophanes and the like.
+function savePhotos_(order) {
+  var photos = order.photos || [];
+  return photos.map(function (photo, i) {
+    var url = saveImage_(photo, order.reference + ' photo ' + (i + 1));
+    return { label: (photo.item || '') + ' - ' + (photo.label || 'photo'), name: photo.name, url: url };
+  });
 }
 
 // --- text ------------------------------------------------------------------
@@ -178,8 +200,13 @@ function money_(n) { return '$' + Number(n).toFixed(2); }
 
 // --- email -----------------------------------------------------------------
 
-function emailOwner_(order, proofUrl) {
+function emailOwner_(order, proofUrl, photos) {
   var payment = order.payment || {};
+  var photoLines = (photos || []).length
+    ? ['', 'CUSTOMER PHOTOS'].concat((photos || []).map(function (p) {
+        return '  ' + p.label + ': ' + p.url;
+      }))
+    : [];
   var body = [
     'New PAID order ' + order.reference,
     '',
@@ -198,13 +225,14 @@ function emailOwner_(order, proofUrl) {
     'Phone:    ' + order.customer.phone,
     'Address:  ' + (order.delivery.address || ''),
     order.delivery.isGift ? 'GIFT - send directly to the recipient, no prices in the parcel.' : '',
-    order.photosExpected ? 'PHOTO - customer asked to reply to their confirmation with it.' : '',
     order.notes ? 'Notes:    ' + order.notes : '',
+    ''
+  ].concat(photoLines).concat([
     '',
     orderDetail_(order),
     '',
     'Next: confirm the payment landed, then send a proof before printing.'
-  ].filter(function (l) { return l !== ''; }).join('\n');
+  ]).filter(function (l) { return l !== ''; }).join('\n');
 
   MailApp.sendEmail({
     to: OWNER_EMAIL,
@@ -236,9 +264,9 @@ function emailCustomer_(order) {
     '   until you approve it, so this is your chance to correct anything.',
     '3. Once you approve it, we make your piece and post it.',
     '',
-    order.photosExpected
-      ? 'ONE THING LEFT TO DO\nYour order includes a photo. Please reply to this email with the\nphoto attached. Bright, high-contrast pictures with a plain background\nwork best. We will tell you before printing if yours will not work.\n'
-      : '',
+    'There is nothing more for you to do for now - we have everything we need,',
+    'including any photo you uploaded.',
+    '',
     'Please keep this email - quote your reference in any message to us.',
     '',
     'Every piece is made by hand after you order, which is why nothing is',
