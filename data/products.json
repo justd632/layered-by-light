@@ -139,11 +139,11 @@
         {
           "id": "occasion",
           "type": "text",
-          "label": "Occasion",
+          "label": "What would you like on the plaque?",
           "maxLength": 40,
           "required": true,
-          "placeholder": "e.g. Graduation, Baptism, Wedding",
-          "help": "What this plaque marks - in your own words."
+          "placeholder": "e.g. Justin's Baptism",
+          "help": "This is the wording printed across the plaque. Most people use a name and the occasion together - \"Justin's Baptism\", \"Sarah & Daniel's Wedding\", \"Class of 2026\"."
         },
         {
           "id": "location",
