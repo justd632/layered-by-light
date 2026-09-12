@@ -10,6 +10,10 @@
  * 1. Go to sheets.new to create a spreadsheet. Name it "Layered by Light
  *    Orders". You do NOT need to add any headers - this script creates them.
  *
+ *    Payment screenshots are saved to a Google Drive folder named in
+ *    DRIVE_FOLDER below, created automatically on the first order. The sheet
+ *    links to each one.
+ *
  * 2. In that sheet: Extensions > Apps Script. Delete whatever is in the
  *    editor and paste this entire file in. Click the save icon.
  *
@@ -53,15 +57,21 @@
 var OWNER_EMAIL = 'CHANGE-ME@example.com';   // where new orders are sent
 var SHOP_NAME   = 'Layered by Light';
 var SHEET_NAME  = 'Orders';
-var PAYNOW_NOTE = 'We will send you PayNow payment instructions shortly.';
+var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots are filed here
 
 // ---------------------------------------------------------------------------
 
 function doPost(e) {
   try {
     var order = JSON.parse(e.postData.contents);
-    appendOrderRow_(order);
-    emailOwner_(order);
+    var proofUrl = '';
+    try {
+      proofUrl = saveProof_(order);       // never lose an order over a bad image
+    } catch (proofErr) {
+      proofUrl = 'UPLOAD FAILED: ' + proofErr;
+    }
+    appendOrderRow_(order, proofUrl);
+    emailOwner_(order, proofUrl);
     emailCustomer_(order);
     return jsonOut_({ ok: true, reference: order.reference });
   } catch (err) {
@@ -82,9 +92,10 @@ function doGet() {
 // --- sheet -----------------------------------------------------------------
 
 var HEADERS = [
-  'Received', 'Reference', 'Status', 'Name', 'Email', 'Phone',
-  'Delivery', 'Address', 'Needed by', 'Gift', 'Photo to come',
-  'Pieces', 'Subtotal (SGD)', 'Notes', 'Full order'
+  'Received', 'Reference', 'Status', 'Name', 'Email', 'Phone', 'Address',
+  'Gift', 'Photo to come', 'Pieces',
+  'Subtotal (SGD)', 'Shipping (SGD)', 'Total paid (SGD)',
+  'PayNow ref', 'Payment screenshot', 'Notes', 'Full order'
 ];
 
 function sheet_() {
@@ -96,34 +107,58 @@ function sheet_() {
     var header = sh.getRange(1, 1, 1, HEADERS.length);
     header.setFontWeight('bold').setBackground('#f2ece2');
     sh.setFrozenRows(1);
-    sh.setColumnWidth(15, 420);   // Full order
-    sh.setColumnWidth(8, 220);    // Address
+    sh.setColumnWidth(17, 420);   // Full order
+    sh.setColumnWidth(7, 220);    // Address
   }
   return sh;
 }
 
-function appendOrderRow_(order) {
+function appendOrderRow_(order, proofUrl) {
   var sh = sheet_();
+  var payment = order.payment || {};
   sh.appendRow([
     new Date(),
     order.reference,
-    'New',
+    'Paid - to verify',
     order.customer.name,
     order.customer.email,
     order.customer.phone,
-    order.delivery.method === 'delivery' ? 'Delivery' : 'Self-collection',
     order.delivery.address || '',
-    order.delivery.neededBy || '',
     order.delivery.isGift ? 'Gift' : '',
     order.photosExpected ? 'YES' : '',
     order.items.length,
     Number(order.subtotal),
+    Number(order.shipping),
+    Number(order.total),
+    payment.reference || '',
+    proofUrl ? proofUrl : 'NOT ATTACHED',
     order.notes || '',
     orderDetail_(order)
   ]);
   var row = sh.getLastRow();
   sh.getRange(row, 1, 1, HEADERS.length).setVerticalAlignment('top');
-  sh.getRange(row, 15).setWrap(true);
+  sh.getRange(row, 17).setWrap(true);
+}
+
+// --- payment screenshot ------------------------------------------------------
+
+function folder_() {
+  var it = DriveApp.getFoldersByName(DRIVE_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(DRIVE_FOLDER);
+}
+
+function saveProof_(order) {
+  var proof = order.payment && order.payment.proof;
+  if (!proof || !proof.data) return '';
+  var ext = (proof.name && proof.name.indexOf('.') > -1)
+    ? proof.name.slice(proof.name.lastIndexOf('.'))
+    : '.png';
+  var blob = Utilities.newBlob(
+    Utilities.base64Decode(proof.data),
+    proof.mimeType || 'image/png',
+    order.reference + ext
+  );
+  return folder_().createFile(blob).getUrl();
 }
 
 // --- text ------------------------------------------------------------------
@@ -143,32 +178,39 @@ function money_(n) { return '$' + Number(n).toFixed(2); }
 
 // --- email -----------------------------------------------------------------
 
-function emailOwner_(order) {
+function emailOwner_(order, proofUrl) {
+  var payment = order.payment || {};
   var body = [
-    'New order ' + order.reference,
+    'New PAID order ' + order.reference,
     '',
-    'From:      ' + order.customer.name,
-    'Email:     ' + order.customer.email,
-    'Phone:     ' + order.customer.phone,
-    'Delivery:  ' + (order.delivery.method === 'delivery' ? 'Deliver to address' : 'Self-collection'),
-    order.delivery.address ? 'Address:   ' + order.delivery.address : '',
-    order.delivery.neededBy ? 'Needed by: ' + order.delivery.neededBy : '',
+    'PAYMENT',
+    'Amount:    ' + money_(order.total) +
+      '  (subtotal ' + money_(order.subtotal) +
+      ' + shipping ' + (order.shipping === 0 ? 'free' : money_(order.shipping)) + ')',
+    'PayNow ref: ' + (payment.reference || '(none given)'),
+    'Screenshot: ' + (proofUrl || 'NOT ATTACHED'),
+    '',
+    'VERIFY THIS AGAINST YOUR BANK BEFORE PRINTING.',
+    '',
+    'CUSTOMER',
+    'From:     ' + order.customer.name,
+    'Email:    ' + order.customer.email,
+    'Phone:    ' + order.customer.phone,
+    'Address:  ' + (order.delivery.address || ''),
     order.delivery.isGift ? 'GIFT - send directly to the recipient, no prices in the parcel.' : '',
-    order.photosExpected ? 'PHOTO - customer has been asked to reply to their confirmation with it.' : '',
-    order.notes ? 'Notes:     ' + order.notes : '',
+    order.photosExpected ? 'PHOTO - customer asked to reply to their confirmation with it.' : '',
+    order.notes ? 'Notes:    ' + order.notes : '',
     '',
     orderDetail_(order),
     '',
-    'Subtotal: ' + money_(order.subtotal) + ' (delivery not included)',
-    '',
-    'Next: send payment instructions, then a proof before printing.'
+    'Next: confirm the payment landed, then send a proof before printing.'
   ].filter(function (l) { return l !== ''; }).join('\n');
 
   MailApp.sendEmail({
     to: OWNER_EMAIL,
     replyTo: order.customer.email,
-    subject: '[' + SHOP_NAME + '] New order ' + order.reference + ' - ' +
-             money_(order.subtotal) + ' - ' + order.customer.name,
+    subject: '[' + SHOP_NAME + '] PAID order ' + order.reference + ' - ' +
+             money_(order.total) + ' - ' + order.customer.name,
     body: body
   });
 }
@@ -183,10 +225,13 @@ function emailCustomer_(order) {
     '',
     orderDetail_(order),
     '',
-    'Subtotal: ' + money_(order.subtotal) + ' (delivery not included)',
+    'Subtotal: ' + money_(order.subtotal),
+    'Shipping: ' + (order.shipping === 0 ? 'Free' : money_(order.shipping)),
+    'TOTAL PAID: ' + money_(order.total),
+    'PayNow reference: ' + ((order.payment && order.payment.reference) || ''),
     '',
     'WHAT HAPPENS NEXT',
-    '1. We confirm your order and send payment details. ' + PAYNOW_NOTE,
+    '1. We check your payment against your reference number.',
     '2. We send you a proof - a mock-up of your piece. Nothing is printed',
     '   until you approve it, so this is your chance to correct anything.',
     '3. Once you approve it, we make your piece and post it.',
@@ -205,7 +250,7 @@ function emailCustomer_(order) {
   MailApp.sendEmail({
     to: order.customer.email,
     replyTo: OWNER_EMAIL,
-    subject: 'Your ' + SHOP_NAME + ' order ' + order.reference,
+    subject: 'Your ' + SHOP_NAME + ' order ' + order.reference + ' - payment received',
     body: body
   });
 }

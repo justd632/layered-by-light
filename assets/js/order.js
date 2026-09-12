@@ -1,13 +1,15 @@
 /* ==========================================================================
-   Layered by Light — order page
-   Renders the basket, validates buyer details, posts the order to the
-   Google Apps Script receiver, and confirms.
+   Layered by Light — order page (pay first, then confirm)
 
-   The endpoint lives in data/products.json under shop.orderEndpoint.
-   See scripts/google-apps-script.gs for how to create it.
+   Step 1  buyer details
+   Step 2  PayNow QR, reference number and payment screenshot
+   Submit  posts the order + screenshot to the Apps Script receiver
 
-   If the endpoint is missing or the send fails, the customer is given an
-   email button instead and THE BASKET IS KEPT, so an order is never lost.
+   Shipping comes from products.json: shop.shippingFee, shop.freeShippingFrom.
+   Endpoint comes from products.json: shop.orderEndpoint.
+
+   If the send fails AFTER the customer has paid, they are told clearly that
+   their payment is safe, given an email fallback, and their basket is kept.
    ========================================================================== */
 (function (global) {
   'use strict';
@@ -15,23 +17,60 @@
   var LBL = global.LBL;
   var shop = (LBL && LBL.data && LBL.data.shop) || {};
   var ENDPOINT = shop.orderEndpoint || '';
+  var SHIPPING_FEE = Number(shop.shippingFee != null ? shop.shippingFee : 2);
+  var FREE_FROM = Number(shop.freeShippingFrom != null ? shop.freeShippingFrom : 25);
+  var MAX_PROOF_BYTES = 5 * 1024 * 1024;
 
   var submitting = false;
+  var details = null;   // captured from step 1
 
   function orderReference() {
     var d = new Date();
-    var stamp = String(d.getFullYear()).slice(2) +
+    return 'LBL-' + String(d.getFullYear()).slice(2) +
       String(d.getMonth() + 1).padStart(2, '0') +
-      String(d.getDate()).padStart(2, '0');
-    return 'LBL-' + stamp + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+      String(d.getDate()).padStart(2, '0') + '-' +
+      Math.random().toString(36).slice(2, 6).toUpperCase();
   }
 
-  /* --- basket rendering -------------------------------------------------- */
+  /* --- money ------------------------------------------------------------- */
+
+  function subtotal() { return LBL.basket.total(); }
+  function shipping() { return subtotal() >= FREE_FROM ? 0 : SHIPPING_FEE; }
+  function grandTotal() { return subtotal() + shipping(); }
+
+  function refreshTotals() {
+    var sub = subtotal(), ship = shipping(), total = grandTotal();
+    var set = function (sel, text) {
+      var n = document.querySelector(sel);
+      if (n) n.textContent = text;
+    };
+    set('[data-subtotal]', LBL.money(sub));
+    set('[data-shipping]', ship === 0 ? 'Free' : LBL.money(ship));
+    set('[data-total]', LBL.money(total));
+    set('[data-pay-amount]', LBL.money(total));
+    set('[data-pay-amount-inline]', LBL.money(total));
+
+    var nudge = document.querySelector('[data-shipping-nudge]');
+    if (nudge) {
+      if (sub > 0 && sub < FREE_FROM) {
+        nudge.innerHTML = 'Add ' + LBL.money(FREE_FROM - sub) +
+          ' more and shipping is free. <a href="shop.html">Keep browsing</a>.';
+        nudge.hidden = false;
+      } else if (sub >= FREE_FROM) {
+        nudge.textContent = 'Your order qualifies for free shipping.';
+        nudge.hidden = false;
+      } else {
+        nudge.hidden = true;
+      }
+    }
+  }
+
+  /* --- basket ------------------------------------------------------------ */
 
   function renderBasket() {
     var host = document.querySelector('[data-basket-list]');
     var totalBox = document.querySelector('[data-basket-total]');
-    var formHost = document.querySelector('[data-order-form-host]');
+    var checkout = document.querySelector('[data-checkout]');
     if (!host) return;
 
     var items = LBL.basket.read();
@@ -40,12 +79,15 @@
       host.innerHTML = '<div class="empty-state"><p>Your order is empty.</p>' +
         '<p><a class="btn btn--primary" href="shop.html">Browse the shop</a></p></div>';
       if (totalBox) totalBox.hidden = true;
-      if (formHost) formHost.hidden = true;
+      var d = document.querySelector('[data-step-details]');
+      var p = document.querySelector('[data-step-payment]');
+      if (d) d.hidden = true;
+      if (p) p.hidden = true;
       return;
     }
 
     if (totalBox) totalBox.hidden = false;
-    if (formHost) formHost.hidden = false;
+    if (checkout) checkout.hidden = false;
 
     host.innerHTML = items.map(function (line) {
       var specs = (line.options || []).map(function (o) {
@@ -63,15 +105,38 @@
         '</div>';
     }).join('');
 
-    var totalNode = document.querySelector('[data-total]');
-    if (totalNode) totalNode.textContent = LBL.money(LBL.basket.total());
-
     host.querySelectorAll('[data-remove]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         LBL.basket.remove(btn.getAttribute('data-remove'));
         renderBasket();
+        refreshTotals();
+        showStep('details');   // amount changed, so send them back to re-confirm
       });
     });
+
+    refreshTotals();
+  }
+
+  /* --- steps ------------------------------------------------------------- */
+
+  function showStep(which) {
+    var d = document.querySelector('[data-step-details]');
+    var p = document.querySelector('[data-step-payment]');
+    var label = document.querySelector('[data-step-label]');
+    var intro = document.querySelector('[data-step-intro]');
+    if (!d || !p) return;
+
+    var onPayment = which === 'payment';
+    d.hidden = onPayment;
+    p.hidden = !onPayment;
+
+    if (label) label.textContent = onPayment ? 'Step 2 of 2 — payment' : 'Step 1 of 2 — your details';
+    if (intro) {
+      intro.textContent = onPayment
+        ? 'Pay the amount shown, then give us your reference number and a screenshot so we can match your payment to your order.'
+        : 'Check your personalisation details carefully — pieces are printed exactly as written here. You will still see a proof before anything is made.';
+    }
+    if (onPayment) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /* --- validation -------------------------------------------------------- */
@@ -83,14 +148,10 @@
     if (input) input.classList.toggle('is-invalid', !!message);
   }
 
-  function validateForm(form) {
+  function validateDetails(form) {
     var ok = true;
-    var required = ['buyerName', 'buyerEmail', 'buyerPhone'];
-    if (form.deliveryMethod.value === 'delivery') required.push('address');
-
-    ['buyerName', 'buyerEmail', 'buyerPhone', 'address'].forEach(function (n) { setError(n, ''); });
-
-    required.forEach(function (name) {
+    ['buyerName', 'buyerEmail', 'buyerPhone', 'address'].forEach(function (name) {
+      setError(name, '');
       var value = (form[name].value || '').trim();
       if (!value) { setError(name, 'Please fill this in.'); ok = false; }
       else if (name === 'buyerEmail' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
@@ -100,24 +161,46 @@
     return ok;
   }
 
+  function validatePayment(form) {
+    var ok = true;
+    setError('paynowRef', '');
+    setError('paymentProof', '');
+
+    if (!(form.paynowRef.value || '').trim()) {
+      setError('paynowRef', 'Please enter the reference from your payment.'); ok = false;
+    }
+    var file = form.paymentProof.files && form.paymentProof.files[0];
+    if (!file) {
+      setError('paymentProof', 'Please attach a screenshot of your payment.'); ok = false;
+    } else if (!/^image\//.test(file.type)) {
+      setError('paymentProof', 'That is not an image. Please attach a screenshot.'); ok = false;
+    } else if (file.size > MAX_PROOF_BYTES) {
+      setError('paymentProof', 'That image is larger than 5MB. Please attach a smaller screenshot.'); ok = false;
+    }
+    return ok;
+  }
+
   /* --- payload ----------------------------------------------------------- */
 
-  function buildOrder(form, ref, items) {
+  function readFileAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var result = String(reader.result || '');
+        resolve(result.slice(result.indexOf(',') + 1));   // strip the data: prefix
+      };
+      reader.onerror = function () { reject(new Error('Could not read that file')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function buildOrder(ref, items, payment) {
     return {
       reference: ref,
       placedAt: new Date().toISOString(),
-      customer: {
-        name: form.buyerName.value.trim(),
-        email: form.buyerEmail.value.trim(),
-        phone: form.buyerPhone.value.trim()
-      },
-      delivery: {
-        method: form.deliveryMethod.value,
-        address: form.deliveryMethod.value === 'delivery' ? form.address.value.trim() : '',
-        neededBy: form.neededBy.value || '',
-        isGift: form.isGift.value === 'yes'
-      },
-      notes: form.notes.value.trim(),
+      customer: { name: details.name, email: details.email, phone: details.phone },
+      delivery: { address: details.address, isGift: details.isGift },
+      notes: details.notes,
       items: items.map(function (l) {
         return {
           name: l.name, price: l.price, leadTime: l.leadTime,
@@ -126,7 +209,10 @@
           })
         };
       }),
-      subtotal: LBL.basket.total(),
+      subtotal: subtotal(),
+      shipping: shipping(),
+      total: grandTotal(),
+      payment: payment,
       photosExpected: items.some(function (l) {
         return (l.options || []).some(function (o) { return o.type === 'file'; });
       })
@@ -138,9 +224,7 @@
     out.push('Name: ' + order.customer.name);
     out.push('Email: ' + order.customer.email);
     out.push('Phone: ' + order.customer.phone);
-    out.push('Delivery: ' + (order.delivery.method === 'delivery' ? 'Deliver to address' : 'Self-collection'));
-    if (order.delivery.address) out.push('Address: ' + order.delivery.address);
-    if (order.delivery.neededBy) out.push('Needed by: ' + order.delivery.neededBy);
+    out.push('Address: ' + order.delivery.address);
     out.push('Gift: ' + (order.delivery.isGift ? 'Yes - send directly to recipient' : 'No'));
     if (order.notes) out.push('Notes: ' + order.notes);
     out.push('', 'PIECES');
@@ -148,42 +232,46 @@
       out.push((i + 1) + '. ' + item.name + ' - $' + Number(item.price).toFixed(2));
       item.options.forEach(function (o) { out.push('   ' + o.label + ': ' + o.value); });
     });
-    out.push('', 'SUBTOTAL: $' + Number(order.subtotal).toFixed(2) + ' (delivery not included)');
+    out.push('');
+    out.push('Subtotal: $' + order.subtotal.toFixed(2));
+    out.push('Shipping: ' + (order.shipping === 0 ? 'Free' : '$' + order.shipping.toFixed(2)));
+    out.push('TOTAL PAID: $' + order.total.toFixed(2));
+    out.push('PayNow reference: ' + order.payment.reference);
     return out.join('\n');
   }
 
   /* --- result screens ---------------------------------------------------- */
 
-  function hideForm() {
-    var main = document.querySelector('.split');
-    if (main) main.hidden = true;
+  function hideCheckout() {
+    var c = document.querySelector('[data-checkout]');
+    if (c) c.hidden = true;
   }
 
   function summaryDetails(text) {
     return '<details><summary class="small muted">View your full order details</summary>' +
-      '<textarea rows="14" readonly style="margin-top: var(--sp-3);">' + LBL.escapeHtml(text) + '</textarea>' +
-      '</details>';
+      '<textarea rows="16" readonly style="margin-top: var(--sp-3);">' + LBL.escapeHtml(text) + '</textarea></details>';
   }
 
   function showSent(order, text) {
-    hideForm();
+    hideCheckout();
     var host = document.querySelector('[data-order-success]');
     host.hidden = false;
     host.innerHTML = '' +
       '<div class="panel stack">' +
         '<p class="badge">Order ' + LBL.escapeHtml(order.reference) + '</p>' +
-        '<h2>Thank you — we have your order</h2>' +
+        '<h2>Thank you — payment received</h2>' +
         '<p class="muted">A copy is on its way to <strong>' + LBL.escapeHtml(order.customer.email) + '</strong>. ' +
-          'If it does not arrive within a few minutes, check your spam folder.</p>' +
+          'If it has not arrived in a few minutes, check your spam folder.</p>' +
         '<h3>What happens next</h3>' +
         '<ol class="steps">' +
-          '<li><div><h3>We confirm and send payment details</h3><p class="muted small">You will get PayNow instructions and the delivery cost.</p></div></li>' +
+          '<li><div><h3>We check your payment</h3><p class="muted small">We match your reference against what we have received.</p></div></li>' +
           '<li><div><h3>We send you a proof</h3><p class="muted small">A mock-up of your piece. Nothing is printed until you approve it.</p></div></li>' +
-          '<li><div><h3>We make it and post it</h3><p class="muted small">Made in ' + LBL.escapeHtml(order.items[0].leadTime || 'a few working days') + ' from the day you approve.</p></div></li>' +
+          '<li><div><h3>We make it and post it</h3><p class="muted small">Made in ' +
+            LBL.escapeHtml(order.items[0].leadTime || 'a few working days') + ' from the day you approve.</p></div></li>' +
         '</ol>' +
         (order.photosExpected
           ? '<p class="note note--warn"><strong>One thing left to do:</strong> your order includes a photo. ' +
-            'Reply to your confirmation email with the photo attached, and we will take it from there.</p>'
+            'Reply to your confirmation email with the photo attached and we will take it from there.</p>'
           : '') +
         summaryDetails(text) +
         '<p><a class="btn btn--ghost" href="shop.html">Back to the shop</a></p>' +
@@ -192,7 +280,7 @@
   }
 
   function showFallback(order, text, reason) {
-    hideForm();
+    hideCheckout();
     var host = document.querySelector('[data-order-success]');
     var mailto = 'mailto:' + (shop.email || '') +
       '?subject=' + encodeURIComponent('Order ' + order.reference) +
@@ -202,32 +290,30 @@
     host.innerHTML = '' +
       '<div class="panel stack">' +
         '<p class="badge">Order ' + LBL.escapeHtml(order.reference) + '</p>' +
-        '<h2>Almost there — one more tap</h2>' +
-        '<p class="note note--warn">We could not submit your order automatically' +
-          (reason ? ' (' + LBL.escapeHtml(reason) + ')' : '') +
-          '. Nothing is lost — send it to us with the button below and we will pick it up from there.</p>' +
+        '<h2>Your payment is safe — but we need one more step</h2>' +
+        '<p class="note note--warn">We could not send your order details automatically' +
+          (reason ? ' (' + LBL.escapeHtml(reason) + ')' : '') + '. ' +
+          '<strong>Your payment has not been lost.</strong> Send us the details with the button below, ' +
+          'attaching your payment screenshot, and we will match it up.</p>' +
         '<p><a class="btn btn--primary" href="' + mailto + '">Send my order by email</a></p>' +
         summaryDetails(text) +
-        '<p class="field__help">Your order is still saved in this browser, so you can also try again later.</p>' +
-        '<p><button type="button" class="btn btn--ghost" data-retry>Try submitting again</button></p>' +
+        '<p class="field__help">Your order is still saved in this browser. Quote reference ' +
+          LBL.escapeHtml(order.reference) + ' in any message to us.</p>' +
       '</div>';
-
-    var retry = host.querySelector('[data-retry]');
-    if (retry) retry.addEventListener('click', function () { global.location.reload(); });
     host.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   /* --- submit ------------------------------------------------------------ */
 
-  function handleSubmit(event) {
+  function handlePaymentSubmit(event) {
     event.preventDefault();
     if (submitting) return;
 
     var form = event.target;
-    var errNode = document.querySelector('[data-order-error]');
+    var errNode = document.querySelector('[data-payment-error]');
     var button = form.querySelector('button[type="submit"]');
 
-    if (!validateForm(form)) {
+    if (!validatePayment(form)) {
       if (errNode) { errNode.textContent = 'Please check the highlighted fields.'; errNode.hidden = false; }
       return;
     }
@@ -236,31 +322,46 @@
     var items = LBL.basket.read();
     if (!items.length) return;
 
-    var order = buildOrder(form, orderReference(), items);
-    var text = summaryText(order);
-
-    if (!ENDPOINT) {
-      showFallback(order, text, 'ordering is not connected yet');
-      return;
-    }
-
     submitting = true;
     var original = button.textContent;
     button.disabled = true;
     button.textContent = 'Sending your order…';
 
-    // Sent as a plain string body so the browser uses text/plain and skips the
-    // CORS preflight, which Apps Script web apps do not answer.
-    fetch(ENDPOINT, { method: 'POST', body: JSON.stringify(order), redirect: 'follow' })
-      .then(function (res) {
-        if (!res.ok) throw new Error('server responded ' + res.status);
-        // The order reached the script; clearing is now safe.
-        LBL.basket.clear();
-        showSent(order, text);
+    var file = form.paymentProof.files[0];
+
+    readFileAsBase64(file)
+      .then(function (base64) {
+        var order = buildOrder(orderReference(), items, {
+          method: 'PayNow',
+          reference: form.paynowRef.value.trim(),
+          proof: { name: file.name, mimeType: file.type, data: base64 }
+        });
+        var text = summaryText(order);
+
+        if (!ENDPOINT) {
+          showFallback(order, text, 'ordering is not connected yet');
+          return;
+        }
+
+        // Plain string body keeps this a simple request, which avoids the CORS
+        // preflight that Apps Script web apps do not answer.
+        return fetch(ENDPOINT, { method: 'POST', body: JSON.stringify(order), redirect: 'follow' })
+          .then(function (res) {
+            if (!res.ok) throw new Error('server responded ' + res.status);
+            LBL.basket.clear();
+            showSent(order, text);
+          })
+          .catch(function (err) {
+            showFallback(order, text, 'connection problem');
+            if (global.console) global.console.error('Order submission failed:', err);
+          });
       })
       .catch(function (err) {
-        showFallback(order, text, 'connection problem');
-        if (global.console) global.console.error('Order submission failed:', err);
+        if (errNode) {
+          errNode.textContent = 'We could not read that screenshot. Please try another image.';
+          errNode.hidden = false;
+        }
+        if (global.console) global.console.error(err);
       })
       .then(function () {
         submitting = false;
@@ -269,19 +370,41 @@
       });
   }
 
+  /* --- init -------------------------------------------------------------- */
+
   document.addEventListener('DOMContentLoaded', function () {
     if (!LBL) return;
     renderBasket();
 
-    var form = document.querySelector('[data-order-form]');
-    if (!form) return;
+    var detailsForm = document.querySelector('[data-details-form]');
+    var paymentForm = document.querySelector('[data-payment-form]');
+    if (!detailsForm || !paymentForm) return;
 
-    var addressField = document.querySelector('[data-address-field]');
-    form.deliveryMethod.addEventListener('change', function () {
-      if (addressField) addressField.hidden = form.deliveryMethod.value !== 'delivery';
+    detailsForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var errNode = document.querySelector('[data-details-error]');
+      if (!validateDetails(detailsForm)) {
+        if (errNode) { errNode.textContent = 'Please check the highlighted fields.'; errNode.hidden = false; }
+        return;
+      }
+      if (errNode) errNode.hidden = true;
+
+      details = {
+        name: detailsForm.buyerName.value.trim(),
+        email: detailsForm.buyerEmail.value.trim(),
+        phone: detailsForm.buyerPhone.value.trim(),
+        address: detailsForm.address.value.trim(),
+        isGift: detailsForm.isGift.value === 'yes',
+        notes: detailsForm.notes.value.trim()
+      };
+      refreshTotals();
+      showStep('payment');
     });
 
-    form.addEventListener('submit', handleSubmit);
+    paymentForm.addEventListener('submit', handlePaymentSubmit);
+
+    var back = document.querySelector('[data-back-to-details]');
+    if (back) back.addEventListener('click', function () { showStep('details'); });
   });
 
 }(window));

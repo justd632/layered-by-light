@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Your Order — Layered by Light</title>
-<meta name="description" content="Review your personalised pieces and send your order.">
+<meta name="description" content="Review your personalised pieces, pay by PayNow, and send your order.">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -22,84 +22,124 @@
 <main>
   <section class="section">
     <div class="wrap">
-      <p class="eyebrow">Step 2 of 4</p>
+      <p class="eyebrow" data-step-label>Step 1 of 2 — your details</p>
       <h1>Your order</h1>
-      <p class="muted prose">Check your personalisation details carefully — pieces are printed exactly as written here. You will still see a proof before anything is made.</p>
+      <p class="muted prose" data-step-intro>Check your personalisation details carefully — pieces are printed exactly as written here. You will still see a proof before anything is made.</p>
 
-      <div class="split mt-6">
+      <div class="split mt-6" data-checkout>
 
         <div>
           <h2>Your pieces</h2>
           <div data-basket-list><p class="muted">Loading…</p></div>
+
           <div class="panel mt-6" data-basket-total hidden>
-            <div class="price-row"><span>Subtotal</span><span class="price-total" data-total>$0.00</span></div>
-            <p class="field__help">Delivery is confirmed with your payment instructions.</p>
+            <div class="price-row"><span>Subtotal</span><span data-subtotal>$0.00</span></div>
+            <div class="price-row"><span>Shipping</span><span data-shipping>$0.00</span></div>
+            <div class="price-row" style="border-top:1px solid var(--c-line); padding-top: var(--sp-3); margin-top: var(--sp-3);">
+              <strong>Total to pay</strong><span class="price-total" data-total>$0.00</span>
+            </div>
+            <p class="note mt-6" data-shipping-nudge hidden></p>
           </div>
         </div>
 
-        <div data-order-form-host>
-          <h2>Your details</h2>
-          <form class="panel stack" data-order-form novalidate>
+        <div>
 
-            <div class="field">
-              <label class="field__label" for="buyerName">Your name <span class="field__req">*</span></label>
-              <input type="text" id="buyerName" name="buyerName" required>
-              <p class="field__error" data-error-for="buyerName" hidden></p>
+          <!-- ---------- STEP 1 ---------- -->
+          <div data-step-details>
+            <h2>Your details</h2>
+            <form class="panel stack" data-details-form novalidate>
+
+              <div class="field">
+                <label class="field__label" for="buyerName">Your name <span class="field__req">*</span></label>
+                <input type="text" id="buyerName" name="buyerName" autocomplete="name" required>
+                <p class="field__error" data-error-for="buyerName" hidden></p>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="buyerEmail">Email <span class="field__req">*</span></label>
+                <input type="email" id="buyerEmail" name="buyerEmail" autocomplete="email" required>
+                <p class="field__help">Your confirmation and proof go here.</p>
+                <p class="field__error" data-error-for="buyerEmail" hidden></p>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="buyerPhone">Phone / WhatsApp <span class="field__req">*</span></label>
+                <input type="tel" id="buyerPhone" name="buyerPhone" autocomplete="tel" required>
+                <p class="field__error" data-error-for="buyerPhone" hidden></p>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="address">Delivery address <span class="field__req">*</span></label>
+                <textarea id="address" name="address" autocomplete="street-address"></textarea>
+                <p class="field__help">Include your postal code and unit number.</p>
+                <p class="field__error" data-error-for="address" hidden></p>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="isGift">Is this a gift?</label>
+                <select id="isGift" name="isGift">
+                  <option value="no">No</option>
+                  <option value="yes">Yes — send it directly to the recipient</option>
+                </select>
+                <p class="field__help">Gift parcels never include prices or invoices.</p>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="notes">Anything else we should know?</label>
+                <textarea id="notes" name="notes"></textarea>
+              </div>
+
+              <p class="field__error" data-details-error hidden></p>
+              <button type="submit" class="btn btn--primary btn--block">Continue to payment</button>
+            </form>
+          </div>
+
+          <!-- ---------- STEP 2 ---------- -->
+          <div data-step-payment hidden>
+            <h2>Pay by PayNow</h2>
+            <div class="panel stack">
+
+              <div class="price-row">
+                <span>Amount to pay</span>
+                <span class="price-total" data-pay-amount>$0.00</span>
+              </div>
+
+              <img src="assets/images/paynow-qr.png" alt="PayNow QR code for Layered by Light"
+                   width="726" height="726"
+                   style="max-width: 260px; height: auto; margin-inline: auto; border-radius: var(--radius-sm);">
+
+              <ol class="steps">
+                <li><div><h3>Scan with your banking app</h3><p class="muted small">Any PayNow-enabled Singapore bank app will read this code.</p></div></li>
+                <li><div><h3>Enter the exact amount</h3><p class="muted small">This code does not carry the amount, so please type <strong data-pay-amount-inline>$0.00</strong> yourself.</p></div></li>
+                <li><div><h3>Screenshot your confirmation</h3><p class="muted small">You will need the reference number and the screenshot below.</p></div></li>
+              </ol>
+
+              <form class="stack" data-payment-form novalidate>
+
+                <div class="field">
+                  <label class="field__label" for="paynowRef">PayNow reference number <span class="field__req">*</span></label>
+                  <input type="text" id="paynowRef" name="paynowRef" maxlength="40">
+                  <p class="field__help">Shown on your payment confirmation, usually starting with a letter or a long number.</p>
+                  <p class="field__error" data-error-for="paynowRef" hidden></p>
+                </div>
+
+                <div class="field">
+                  <label class="field__label" for="paymentProof">Payment screenshot <span class="field__req">*</span></label>
+                  <input type="file" id="paymentProof" name="paymentProof" accept="image/*">
+                  <p class="field__help">A screenshot of your PayNow confirmation. Images only, up to 5MB.</p>
+                  <p class="field__error" data-error-for="paymentProof" hidden></p>
+                </div>
+
+                <p class="field__error" data-payment-error hidden></p>
+                <button type="submit" class="btn btn--primary btn--block">I have paid — send my order</button>
+                <p class="field__help">Your order reaches us only once you press this. Nothing is printed until you approve a proof.</p>
+                <p><button type="button" class="link-danger" data-back-to-details>Back to my details</button></p>
+              </form>
+
             </div>
+          </div>
 
-            <div class="field">
-              <label class="field__label" for="buyerEmail">Email <span class="field__req">*</span></label>
-              <input type="email" id="buyerEmail" name="buyerEmail" required>
-              <p class="field__help">Your proof and payment instructions go here.</p>
-              <p class="field__error" data-error-for="buyerEmail" hidden></p>
-            </div>
-
-            <div class="field">
-              <label class="field__label" for="buyerPhone">Phone / WhatsApp <span class="field__req">*</span></label>
-              <input type="tel" id="buyerPhone" name="buyerPhone" required>
-              <p class="field__error" data-error-for="buyerPhone" hidden></p>
-            </div>
-
-            <div class="field">
-              <label class="field__label" for="deliveryMethod">Delivery <span class="field__req">*</span></label>
-              <select id="deliveryMethod" name="deliveryMethod" required>
-                <option value="delivery">Deliver to an address</option>
-                <option value="collection">Self-collection (by arrangement)</option>
-              </select>
-            </div>
-
-            <div class="field" data-address-field>
-              <label class="field__label" for="address">Delivery address <span class="field__req">*</span></label>
-              <textarea id="address" name="address"></textarea>
-              <p class="field__error" data-error-for="address" hidden></p>
-            </div>
-
-            <div class="field">
-              <label class="field__label" for="neededBy">Needed by (optional)</label>
-              <input type="date" id="neededBy" name="neededBy">
-              <p class="field__help">If you have a deadline, tell us now. We will confirm whether it is possible before taking payment.</p>
-            </div>
-
-            <div class="field">
-              <label class="field__label" for="isGift">Is this a gift?</label>
-              <select id="isGift" name="isGift">
-                <option value="no">No</option>
-                <option value="yes">Yes — send it directly to the recipient</option>
-              </select>
-              <p class="field__help">Gift parcels never include prices or invoices.</p>
-            </div>
-
-            <div class="field">
-              <label class="field__label" for="notes">Anything else we should know?</label>
-              <textarea id="notes" name="notes"></textarea>
-            </div>
-
-            <p class="field__error" data-order-error hidden></p>
-            <button type="submit" class="btn btn--primary btn--block">Send my order</button>
-            <p class="field__help">No payment is taken on this site. You will receive PayNow instructions once we confirm your order.</p>
-          </form>
         </div>
-
       </div>
 
       <div data-order-success hidden></div>
