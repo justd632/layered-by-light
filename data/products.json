@@ -138,31 +138,12 @@
       "options": [
         {
           "id": "occasion",
-          "type": "select",
+          "type": "text",
           "label": "Occasion",
+          "maxLength": 40,
           "required": true,
-          "choices": [
-            {
-              "value": "graduation",
-              "label": "Graduation"
-            },
-            {
-              "value": "baptism",
-              "label": "Baptism"
-            },
-            {
-              "value": "dedication",
-              "label": "Dedication"
-            },
-            {
-              "value": "wedding",
-              "label": "Wedding or anniversary"
-            },
-            {
-              "value": "other",
-              "label": "Something else"
-            }
-          ]
+          "placeholder": "e.g. Graduation, Baptism, Wedding",
+          "help": "What this plaque marks - in your own words."
         },
         {
           "id": "location",
