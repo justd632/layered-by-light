@@ -79,7 +79,8 @@ window.LBL_PRODUCTS = {
       "shortDescription": "A verse of your choosing, lit softly from behind.",
       "description": "A layered panel carrying the words you choose, lit from behind so the text glows. The frame measures 14.4cm x 19.5cm. If your text does not sit neatly in those proportions we will do our best to fit everything in.",
       "images": [
-        "assets/images/products/placeholder-lightbox.svg"
+        "assets/images/products/verse-light-box.jpg",
+        "assets/images/products/verse-light-box-2.jpg"
       ],
       "options": [
         {
@@ -200,7 +201,7 @@ window.LBL_PRODUCTS = {
       "shortDescription": "A slim acrylic keychain carrying a verse, in three sizes.",
       "description": "A small acrylic keychain printed with a verse of your choosing. The larger sizes give the words more room, so a longer passage needs a bigger piece.",
       "images": [
-        "assets/images/products/placeholder-acrylic.svg"
+        "assets/images/products/acrylic-verse-keychain.jpg"
       ],
       "options": [
         {
@@ -270,7 +271,8 @@ window.LBL_PRODUCTS = {
       "shortDescription": "The breadclip bookmark, carrying a verse of your choosing.",
       "description": "Shaped like the humble bread tag so it clips onto the page rather than sitting loose in it - and printed with the verse you want to keep coming back to.",
       "images": [
-        "assets/images/products/placeholder-bookmark.svg"
+        "assets/images/products/breadclip-bookmark-with-verse.jpg",
+        "assets/images/products/breadclip-bookmark-with-verse-2.jpg"
       ],
       "options": [
         {
@@ -329,7 +331,7 @@ window.LBL_PRODUCTS = {
       "shortDescription": "A slim tool for turning thin Bible pages cleanly.",
       "description": "Thin Bible paper is difficult to turn without creasing or catching two pages at once. This slim opener slides between the pages and lifts one cleanly.",
       "images": [
-        "assets/images/products/placeholder-bookmark.svg"
+        "assets/images/products/bible-opener.jpg"
       ],
       "options": [
         {
@@ -376,7 +378,7 @@ window.LBL_PRODUCTS = {
       "shortDescription": "A miniature number plate, printed with your registration.",
       "description": "A small plate keychain printed with the registration of your choosing - a good gift for a new driver, or a first car.",
       "images": [
-        "assets/images/products/placeholder-keychain.svg"
+        "assets/images/products/car-plate-keychain.jpg"
       ],
       "options": [
         {
@@ -435,7 +437,7 @@ window.LBL_PRODUCTS = {
       "shortDescription": "A miniature weight plate, personalised with your text.",
       "description": "A small bumper plate keychain - for the person whose week is organised around training days.",
       "images": [
-        "assets/images/products/placeholder-keychain.svg"
+        "assets/images/products/bumper-plate-keychain.jpg"
       ],
       "options": [
         {
