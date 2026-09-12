@@ -47,7 +47,8 @@ window.LBL_PRODUCTS = {
       "shortDescription": "Your own photograph, printed into a panel that reveals it when lit.",
       "description": "A lithophane is a photograph printed as varying thickness rather than ink - it looks like a pale panel until it is lit from behind, and then the image appears. The frame measures 13cm x 18cm, and the printed panel is 180:127 - close to A4 proportions.",
       "images": [
-        "assets/images/products/lithophane-light-box.jpg"
+        "assets/images/products/lithophane-light-box.jpg",
+        "assets/images/hero-lithophane.jpg"
       ],
       "options": [
         {
