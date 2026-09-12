@@ -480,10 +480,10 @@ window.LBL_PRODUCTS = {
       "category": "keychains",
       "price": 1.9,
       "leadTime": "3-5 working days",
-      "shortDescription": "A tiny breadclip keychain - the small one.",
-      "description": "A miniature bread tag on a ring. Small, cheap, and strangely satisfying - the sort of thing that ends up on everyone's keys.",
+      "shortDescription": "A bread tag keychain reading Our Daily Bread.",
+      "description": "A miniature bread tag on a ring, printed with \"Our Daily Bread\". Small, cheap, and strangely satisfying - the sort of thing that ends up on everyone's keys and bags.",
       "images": [
-        "assets/images/products/placeholder-keychain.svg"
+        "assets/images/products/breadclip-keychain.jpg"
       ],
       "options": [
         {
