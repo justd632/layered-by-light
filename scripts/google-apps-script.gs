@@ -65,7 +65,7 @@ var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots and cus
 // Bump this whenever the script changes. Open the /exec URL in a browser and
 // this is what it reports, so you can always tell which version is actually
 // deployed - saving is not the same as deploying.
-var SCRIPT_VERSION = '2026-09-12 photos + multi-recipient';
+var SCRIPT_VERSION = '2026-09-13 per-product tabs';
 
 // ---------------------------------------------------------------------------
 
@@ -84,6 +84,7 @@ function doPost(e) {
       photos = [{ label: 'photo', name: '', url: 'UPLOAD FAILED: ' + photoErr }];
     }
     appendOrderRow_(order, proofUrl, photos.map(function (p) { return p.url; }));
+    writeItemRows_(order, photos);
     emailOwner_(order, proofUrl, photos);
     emailCustomer_(order);
     return jsonOut_({ ok: true, reference: order.reference });
@@ -115,23 +116,92 @@ var HEADERS = [
   'PayNow ref', 'Payment screenshot', 'Notes', 'Full order'
 ];
 
-function sheet_() {
+function sheetWithHeaders_(name, headers) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(SHEET_NAME);
-  if (!sh) sh = ss.insertSheet(SHEET_NAME);
+  var sh = ss.getSheetByName(name) || ss.insertSheet(name);
+
   if (sh.getLastRow() === 0) {
-    sh.appendRow(HEADERS);
-    var header = sh.getRange(1, 1, 1, HEADERS.length);
-    header.setFontWeight('bold').setBackground('#f2ece2');
-    sh.setFrozenRows(1);
-    sh.setColumnWidth(17, 420);   // Full order
-    sh.setColumnWidth(7, 220);    // Address
+    sh.appendRow(headers);
+  } else {
+    // Repair a header row left behind by an older version of this script,
+    // otherwise values land under the wrong labels.
+    var width = Math.max(sh.getLastColumn(), headers.length);
+    var current = sh.getRange(1, 1, 1, width).getValues()[0];
+    var matches = headers.every(function (h, i) { return current[i] === h; });
+    if (!matches) sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
+
+  sh.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#f2ece2');
+  sh.setFrozenRows(1);
   return sh;
 }
 
+// Product sheets grow their own columns as new options appear, so each
+// product keeps exactly the fields it actually has.
+function ensureColumns_(sh, needed) {
+  var last = sh.getLastColumn();
+  var header = last ? sh.getRange(1, 1, 1, last).getValues()[0] : [];
+  while (header.length && header[header.length - 1] === '') header.pop();
+
+  var grew = false;
+  needed.forEach(function (h) {
+    if (header.indexOf(h) === -1) { header.push(h); grew = true; }
+  });
+  if (grew) {
+    sh.getRange(1, 1, 1, header.length).setValues([header]);
+    sh.getRange(1, 1, 1, header.length).setFontWeight('bold').setBackground('#f2ece2');
+    sh.setFrozenRows(1);
+  }
+  return header;
+}
+
+function tabName_(productName) {
+  // Sheet names cannot contain : \ / ? * [ ]
+  return String(productName || 'Other').replace(/[:\\\/?*\[\]]/g, '-').slice(0, 90);
+}
+
+var ITEM_BASE = ['Received', 'Reference', 'Status', 'Customer', 'Phone', 'Price (SGD)', 'Photo'];
+
+// One row per PIECE, on a tab named after the product. This is the list you
+// work from when making things: every car plate together, every lithophane
+// together, each with only the options that product actually has.
+function writeItemRows_(order, photos) {
+  var when = new Date();
+
+  // Photos arrive in the same order as the pieces that carry them, so take
+  // them from a queue per product rather than assuming one each.
+  var queue = {};
+  (photos || []).forEach(function (ph) {
+    (queue[ph.item] = queue[ph.item] || []).push(ph);
+  });
+
+  (order.items || []).forEach(function (item) {
+    var labels = (item.options || []).map(function (o) { return o.label; });
+    var sh = sheetWithHeaders_(tabName_(item.name), ITEM_BASE);
+    var header = ensureColumns_(sh, ITEM_BASE.concat(labels));
+
+    var photo = (queue[item.name] || []).shift();
+    var values = {
+      'Received': when,
+      'Reference': order.reference,
+      'Status': 'Paid - to verify',
+      'Customer': order.customer.name,
+      'Phone': order.customer.phone,
+      'Price (SGD)': Number(item.price),
+      'Photo': photo ? photo.url : ''
+    };
+    (item.options || []).forEach(function (o) { values[o.label] = o.value; });
+
+    var row = header.map(function (h) { return values[h] != null ? values[h] : ''; });
+    sh.appendRow(row);
+    sh.getRange(sh.getLastRow(), 1, 1, header.length).setVerticalAlignment('top');
+  });
+}
+
+// --- the master order row ----------------------------------------------------
+
 function appendOrderRow_(order, proofUrl, photoUrls) {
-  var sh = sheet_();
+  var sh = sheetWithHeaders_(SHEET_NAME, HEADERS);
   var payment = order.payment || {};
   sh.appendRow([
     new Date(),
@@ -155,9 +225,11 @@ function appendOrderRow_(order, proofUrl, photoUrls) {
   var row = sh.getLastRow();
   sh.getRange(row, 1, 1, HEADERS.length).setVerticalAlignment('top');
   sh.getRange(row, 17).setWrap(true);
+  sh.setColumnWidth(17, 420);
+  sh.setColumnWidth(7, 220);
 }
 
-// --- payment screenshot ------------------------------------------------------
+// --- payment screenshots and customer photos ---------------------------------
 
 function folder_() {
   var it = DriveApp.getFoldersByName(DRIVE_FOLDER);
@@ -191,7 +263,7 @@ function savePhotos_(order) {
   var photos = order.photos || [];
   return photos.map(function (photo, i) {
     var url = saveImage_(photo, order.reference + ' photo ' + (i + 1));
-    return { label: (photo.item || '') + ' - ' + (photo.label || 'photo'), name: photo.name, url: url };
+    return { label: (photo.item || '') + ' - ' + (photo.label || 'photo'), item: photo.item, name: photo.name, url: url };
   });
 }
 
