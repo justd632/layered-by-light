@@ -65,7 +65,7 @@ var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots and cus
 // Bump this whenever the script changes. Open the /exec URL in a browser and
 // this is what it reports, so you can always tell which version is actually
 // deployed - saving is not the same as deploying.
-var SCRIPT_VERSION = '2026-09-13 images attached to email';
+var SCRIPT_VERSION = '2026-09-13 clickable image links';
 
 // ---------------------------------------------------------------------------
 
@@ -199,7 +199,7 @@ function writeItemRows_(order, photos) {
       'Customer': order.customer.name,
       'Phone': order.customer.phone,
       'Price (SGD)': Number(item.price),
-      'Photo': photo ? photo.url : ''
+      'Photo': photo ? (linkCell_(photo.url, 'View photo') || photo.url) : ''
     };
     (item.options || []).forEach(function (o) { values[o.label] = o.value; });
 
@@ -223,13 +223,17 @@ function appendOrderRow_(order, proofUrl, photoUrls) {
     order.customer.phone,
     order.delivery.address || '',
     order.delivery.isGift ? 'Gift' : '',
-    (photoUrls && photoUrls.length) ? photoUrls.join('\n') : '',
+    (photoUrls && photoUrls.length)
+      ? (photoUrls.length === 1
+          ? linkCell_(photoUrls[0], 'View photo')
+          : photoUrls.join('\n'))
+      : '',
     order.items.length,
     Number(order.subtotal),
     Number(order.shipping),
     Number(order.total),
     payment.reference || '',
-    proofUrl ? proofUrl : 'NOT ATTACHED',
+    linkCell_(proofUrl, 'View payment') || 'NOT ATTACHED',
     order.notes || '',
     orderDetail_(order)
   ]);
@@ -283,6 +287,13 @@ function fileInDrive_(blob) {
 }
 
 var ATTACHED = 'Attached to your order email';
+
+// A clickable cell, rather than a long raw URL filling the column.
+function linkCell_(url, label) {
+  if (!url) return '';
+  if (url.indexOf('http') !== 0) return url;              // a status message
+  return '=HYPERLINK("' + url + '","' + label + '")';
+}
 
 /**
  * RUN THIS ONCE FROM THE EDITOR to turn on Drive links.
