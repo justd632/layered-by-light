@@ -135,6 +135,16 @@ main { flex: 1 0 auto; }
   text-align: center; padding: var(--sp-5);
 }
 
+/* A real photograph in the hero: square, so a framed piece is never cropped
+   top and bottom the way the 4:3 placeholder box would. */
+img.hero__art {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  object-fit: cover;
+  background: none;
+  padding: 0;
+}
+
 /* --- Buttons -------------------------------------------------------------- */
 .btn {
   display: inline-block; border: 1px solid transparent; border-radius: var(--radius-sm);
