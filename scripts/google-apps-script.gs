@@ -57,7 +57,12 @@
 var OWNER_EMAIL = 'CHANGE-ME@example.com';   // where new orders are sent
 var SHOP_NAME   = 'Layered by Light';
 var SHEET_NAME  = 'Orders';
-var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots are filed here
+var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots and customer photos are filed here
+
+// Bump this whenever the script changes. Open the /exec URL in a browser and
+// this is what it reports, so you can always tell which version is actually
+// deployed - saving is not the same as deploying.
+var SCRIPT_VERSION = '2026-09-12 photos';
 
 // ---------------------------------------------------------------------------
 
@@ -91,7 +96,11 @@ function doPost(e) {
 }
 
 function doGet() {
-  return jsonOut_({ ok: true, message: SHOP_NAME + ' order receiver is running.' });
+  return jsonOut_({
+    ok: true,
+    version: SCRIPT_VERSION,
+    message: SHOP_NAME + ' order receiver is running.'
+  });
 }
 
 // --- sheet -----------------------------------------------------------------
