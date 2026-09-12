@@ -6,7 +6,8 @@
 
    Supported option types: text | textarea | select | file
    Optional keys: required, maxLength, placeholder, help, accept,
-                  choices[{value,label,priceDelta}],
+                  choices[{value,label,priceDelta,image}] - an `image` on a
+                  choice swaps the main product photo when it is selected,
                   maxLengthFrom {option, map} - character limit that follows
                   another option's value, e.g. a verse whose length depends on
                   the size chosen. Overrides maxLength while that option is set.
@@ -33,7 +34,8 @@
         (opt.required ? '' : '<option value="">No preference</option>') +
         (opt.choices || []).map(function (c) {
           var extra = c.priceDelta ? ' (+' + LBL.money(c.priceDelta) + ')' : '';
-          return '<option value="' + LBL.escapeHtml(c.value) + '" data-price-delta="' + (c.priceDelta || 0) + '">' +
+          return '<option value="' + LBL.escapeHtml(c.value) + '" data-price-delta="' + (c.priceDelta || 0) + '"' +
+                 (c.image ? ' data-image="' + LBL.escapeHtml(c.image) + '"' : '') + '>' +
                  LBL.escapeHtml(c.label) + extra + '</option>';
         }).join('') +
         '</select>';
@@ -78,6 +80,26 @@
       if (chosen) total += Number(chosen.getAttribute('data-price-delta') || 0);
     }
     return total;
+  }
+
+  // A choice can carry its own photo - picking it shows that version of the
+  // piece, so the customer sees what they are actually ordering.
+  function refreshImage() {
+    var img = document.querySelector('[data-product-image]');
+    if (!img || !form) return;
+    var selects = form.querySelectorAll('select[data-option-id]');
+    for (var i = 0; i < selects.length; i++) {
+      var chosen = selects[i].options[selects[i].selectedIndex];
+      var src = chosen && chosen.getAttribute('data-image');
+      if (src) {
+        var next = '../' + src;
+        if (img.getAttribute('src') !== next) {
+          img.setAttribute('src', next);
+          img.setAttribute('alt', product.name + ' - ' + chosen.textContent);
+        }
+        return;
+      }
+    }
   }
 
   function refreshPrice() {
@@ -234,11 +256,12 @@
     errorSummary = host.querySelector('[data-error-summary]');
 
     form.addEventListener('input', function () { refreshCounters(); refreshPrice(); });
-    form.addEventListener('change', refreshPrice);
+    form.addEventListener('change', function () { refreshPrice(); refreshImage(); });
     form.addEventListener('submit', handleSubmit);
 
     refreshCounters();
     refreshPrice();
+    refreshImage();
   });
 
 }(window));

@@ -79,8 +79,8 @@ window.LBL_PRODUCTS = {
       "shortDescription": "A verse of your choosing, lit softly from behind.",
       "description": "A layered panel carrying the words you choose, lit from behind so the text glows. The frame measures 14.4cm x 19.5cm. If your text does not sit neatly in those proportions we will do our best to fit everything in.",
       "images": [
-        "assets/images/products/verse-light-box.jpg",
-        "assets/images/products/verse-light-box-2.jpg"
+        "assets/images/products/verse-light-box-vertical.jpg",
+        "assets/images/products/verse-light-box-horizontal.jpg"
       ],
       "options": [
         {
@@ -107,13 +107,16 @@ window.LBL_PRODUCTS = {
           "choices": [
             {
               "value": "vertical",
-              "label": "Vertical (portrait)"
+              "label": "Vertical (portrait)",
+              "image": "assets/images/products/verse-light-box-vertical.jpg"
             },
             {
               "value": "horizontal",
-              "label": "Horizontal (landscape)"
+              "label": "Horizontal (landscape)",
+              "image": "assets/images/products/verse-light-box-horizontal.jpg"
             }
-          ]
+          ],
+          "help": "The photo updates to show the shape you pick."
         },
         {
           "id": "giftNote",
