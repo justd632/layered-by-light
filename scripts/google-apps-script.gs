@@ -65,27 +65,38 @@ var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots and cus
 // Bump this whenever the script changes. Open the /exec URL in a browser and
 // this is what it reports, so you can always tell which version is actually
 // deployed - saving is not the same as deploying.
-var SCRIPT_VERSION = '2026-09-13 per-product tabs';
+var SCRIPT_VERSION = '2026-09-13 images attached to email';
 
 // ---------------------------------------------------------------------------
 
 function doPost(e) {
   try {
     var order = JSON.parse(e.postData.contents);
-    var proofUrl = '', photos = [];
-    try {
-      proofUrl = saveProof_(order);       // never lose an order over a bad image
-    } catch (proofErr) {
-      proofUrl = 'UPLOAD FAILED: ' + proofErr;
-    }
-    try {
-      photos = savePhotos_(order);
-    } catch (photoErr) {
-      photos = [{ label: 'photo', name: '', url: 'UPLOAD FAILED: ' + photoErr }];
-    }
-    appendOrderRow_(order, proofUrl, photos.map(function (p) { return p.url; }));
+    var proofBlob = toBlob_(order.payment && order.payment.proof, order.reference + ' payment');
+    var photoParts = (order.photos || []).map(function (ph, i) {
+      return {
+        item: ph.item, label: ph.label, name: ph.name,
+        blob: toBlob_(ph, order.reference + ' photo ' + (i + 1))
+      };
+    });
+
+    var proofUrl = fileInDrive_(proofBlob);
+    var photos = photoParts.map(function (part) {
+      return {
+        item: part.item,
+        label: (part.item || '') + ' - ' + (part.label || 'photo'),
+        name: part.name,
+        url: fileInDrive_(part.blob) || ATTACHED
+      };
+    });
+
+    var attachments = [proofBlob].concat(photoParts.map(function (x) { return x.blob; }))
+      .filter(function (b) { return b; });
+
+    appendOrderRow_(order, proofUrl || (proofBlob ? ATTACHED : 'NOT ATTACHED'),
+                    photos.map(function (p) { return p.url; }));
     writeItemRows_(order, photos);
-    emailOwner_(order, proofUrl, photos);
+    emailOwner_(order, proofUrl || (proofBlob ? ATTACHED : 'NOT ATTACHED'), photos, attachments);
     emailCustomer_(order);
     return jsonOut_({ ok: true, reference: order.reference });
   } catch (err) {
@@ -230,41 +241,59 @@ function appendOrderRow_(order, proofUrl, photoUrls) {
 }
 
 // --- payment screenshots and customer photos ---------------------------------
+//
+// Images are ALWAYS attached to your order email, which needs no special
+// permission. Filing them in Drive as well is a bonus: it gives you links in
+// the sheet, but if Drive access has not been granted the order still lands
+// with the pictures attached.
+
+function toBlob_(file, filename) {
+  if (!file || !file.data) return null;
+  var ext = (file.name && file.name.indexOf('.') > -1)
+    ? file.name.slice(file.name.lastIndexOf('.'))
+    : '.png';
+  try {
+    return Utilities.newBlob(
+      Utilities.base64Decode(file.data),
+      file.mimeType || 'image/png',
+      filename + ext
+    );
+  } catch (err) {
+    return null;
+  }
+}
 
 function folder_() {
   var it = DriveApp.getFoldersByName(DRIVE_FOLDER);
   return it.hasNext() ? it.next() : DriveApp.createFolder(DRIVE_FOLDER);
 }
 
-function saveImage_(file, filename) {
-  if (!file || !file.data) return '';
-  var ext = (file.name && file.name.indexOf('.') > -1)
-    ? file.name.slice(file.name.lastIndexOf('.'))
-    : '.png';
-  var blob = Utilities.newBlob(
-    Utilities.base64Decode(file.data),
-    file.mimeType || 'image/png',
-    filename + ext
-  );
-  var saved = folder_().createFile(blob);
-  // Anyone with the link can view, so the links in your email open straight up.
+// Returns a link, or '' if Drive is unavailable. Never throws.
+function fileInDrive_(blob) {
+  if (!blob) return '';
   try {
-    saved.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  } catch (ignored) {}
-  return saved.getUrl();
+    var saved = folder_().createFile(blob);
+    try {
+      saved.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (ignored) {}
+    return saved.getUrl();
+  } catch (err) {
+    return '';
+  }
 }
 
-function saveProof_(order) {
-  return saveImage_(order.payment && order.payment.proof, order.reference + ' payment');
-}
+var ATTACHED = 'Attached to your order email';
 
-// Photos the customer uploaded for their pieces - lithophanes and the like.
-function savePhotos_(order) {
-  var photos = order.photos || [];
-  return photos.map(function (photo, i) {
-    var url = saveImage_(photo, order.reference + ' photo ' + (i + 1));
-    return { label: (photo.item || '') + ' - ' + (photo.label || 'photo'), item: photo.item, name: photo.name, url: url };
-  });
+/**
+ * RUN THIS ONCE FROM THE EDITOR to turn on Drive links.
+ * Pick authoriseDrive in the function dropdown, press Run, and accept the
+ * permission prompt. Then deploy a new version. Until you do, everything
+ * still works - the images just arrive as email attachments only.
+ */
+function authoriseDrive() {
+  var f = folder_();
+  Logger.log('Drive access is working. Folder ready: ' + f.getName());
+  return 'ok';
 }
 
 // --- text ------------------------------------------------------------------
@@ -284,7 +313,7 @@ function money_(n) { return '$' + Number(n).toFixed(2); }
 
 // --- email -----------------------------------------------------------------
 
-function emailOwner_(order, proofUrl, photos) {
+function emailOwner_(order, proofUrl, photos, attachments) {
   var payment = order.payment || {};
   var photoLines = (photos || []).length
     ? ['', 'CUSTOMER PHOTOS'].concat((photos || []).map(function (p) {
@@ -323,7 +352,8 @@ function emailOwner_(order, proofUrl, photos) {
     replyTo: order.customer.email,
     subject: '[' + SHOP_NAME + '] PAID order ' + order.reference + ' - ' +
              money_(order.total) + ' - ' + order.customer.name,
-    body: body
+    body: body,
+    attachments: attachments || []
   });
 }
 
