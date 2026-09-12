@@ -6,7 +6,10 @@
 
    Supported option types: text | textarea | select | file
    Optional keys: required, maxLength, placeholder, help, accept,
-                  choices[{value,label,priceDelta}]
+                  choices[{value,label,priceDelta}],
+                  maxLengthFrom {option, map} - character limit that follows
+                  another option's value, e.g. a verse whose length depends on
+                  the size chosen. Overrides maxLength while that option is set.
    ========================================================================== */
 (function (global) {
   'use strict';
@@ -17,8 +20,9 @@
   function fieldHtml(opt) {
     var id = 'opt-' + opt.id;
     var req = opt.required ? ' <span class="field__req" aria-hidden="true">*</span>' : '';
-    var counter = opt.maxLength
-      ? '<span class="field__count" data-count-for="' + opt.id + '">0/' + opt.maxLength + '</span>' : '';
+    var hasLimit = opt.maxLength || opt.maxLengthFrom;
+    var counter = hasLimit
+      ? '<span class="field__count" data-count-for="' + opt.id + '">0/' + (opt.maxLength || '') + '</span>' : '';
     var help = opt.help ? '<p class="field__help">' + LBL.escapeHtml(opt.help) + '</p>' : '';
     var control = '';
 
@@ -34,7 +38,7 @@
         '</select>';
     } else if (opt.type === 'textarea') {
       control = '<textarea id="' + id + '" name="' + opt.id + '" data-option-id="' + opt.id + '"' +
-        (opt.maxLength ? ' maxlength="' + opt.maxLength + '"' : '') +
+        (opt.maxLength && !opt.maxLengthFrom ? ' maxlength="' + opt.maxLength + '"' : '') +
         (opt.placeholder ? ' placeholder="' + LBL.escapeHtml(opt.placeholder) + '"' : '') +
         (opt.required ? ' required' : '') + '></textarea>';
     } else if (opt.type === 'file') {
@@ -43,7 +47,7 @@
         (opt.required ? ' required' : '') + '>';
     } else {
       control = '<input type="text" id="' + id + '" name="' + opt.id + '" data-option-id="' + opt.id + '"' +
-        (opt.maxLength ? ' maxlength="' + opt.maxLength + '"' : '') +
+        (opt.maxLength && !opt.maxLengthFrom ? ' maxlength="' + opt.maxLength + '"' : '') +
         (opt.placeholder ? ' placeholder="' + LBL.escapeHtml(opt.placeholder) + '"' : '') +
         (opt.required ? ' required' : '') + '>';
     }
@@ -53,6 +57,16 @@
       control + help +
       '<p class="field__error" data-error-for="' + opt.id + '" hidden></p>' +
       '</div>';
+  }
+
+  function limitFor(opt) {
+    if (opt.maxLengthFrom && form) {
+      var ctrl = form.querySelector('[data-option-id="' + opt.maxLengthFrom.option + '"]');
+      if (ctrl && opt.maxLengthFrom.map[ctrl.value] != null) {
+        return Number(opt.maxLengthFrom.map[ctrl.value]);
+      }
+    }
+    return opt.maxLength ? Number(opt.maxLength) : 0;
   }
 
   function currentPrice() {
@@ -71,13 +85,21 @@
 
   function refreshCounters() {
     (product.options || []).forEach(function (opt) {
-      if (!opt.maxLength) return;
+      if (!opt.maxLength && !opt.maxLengthFrom) return;
       var input = form.querySelector('[data-option-id="' + opt.id + '"]');
       var counter = form.querySelector('[data-count-for="' + opt.id + '"]');
       if (!input || !counter) return;
+      var limit = limitFor(opt);
+      if (limit) input.setAttribute('maxlength', limit);
       var len = (input.value || '').length;
-      counter.textContent = len + '/' + opt.maxLength;
-      counter.classList.toggle('is-full', len >= opt.maxLength);
+      counter.textContent = len + '/' + limit;
+      counter.classList.toggle('is-full', limit && len >= limit);
+      // Shrinking the limit can leave existing text over it - say so straight away.
+      if (limit && len > limit) {
+        showError(opt.id, 'That is ' + (len - limit) + ' characters too long for the size you have chosen.');
+      } else if (input.classList.contains('is-invalid') && len <= limit) {
+        showError(opt.id, '');
+      }
     });
   }
 
@@ -95,8 +117,9 @@
       if (!input) return;
       var value = opt.type === 'file' ? (input.files && input.files.length ? input.files[0].name : '') : input.value.trim();
       var message = '';
+      var limit = limitFor(opt);
       if (opt.required && !value) message = 'Please fill this in.';
-      else if (opt.maxLength && value.length > opt.maxLength) message = 'Please keep this to ' + opt.maxLength + ' characters.';
+      else if (limit && value.length > limit) message = 'Please keep this to ' + limit + ' characters.';
       showError(opt.id, message);
       if (message) { ok = false; firstBad = firstBad || input; }
     });

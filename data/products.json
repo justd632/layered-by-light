@@ -23,11 +23,6 @@
       "description": "Keepsake plaques for graduations, baptisms and the milestones in between."
     },
     {
-      "id": "acrylic-verse",
-      "name": "Acrylic Verses",
-      "description": "Standing verse pieces in three sizes, for a desk, a shelf or a bedside."
-    },
-    {
       "id": "bookmarks",
       "name": "Bookmarks & Bible Accessories",
       "description": "Slim pieces for Bibles, journals and devotionals."
@@ -36,11 +31,6 @@
       "id": "keychains",
       "name": "Keychains",
       "description": "Everyday carry pieces, personalised with a name or a plate."
-    },
-    {
-      "id": "clickers",
-      "name": "Clickers",
-      "description": "Little tactile clickers - a small gift that keeps hands busy."
     }
   ],
   "products": [
@@ -53,7 +43,7 @@
       "leadTime": "5-7 working days",
       "featured": true,
       "shortDescription": "Your own photograph, printed into a panel that reveals it when lit.",
-      "description": "A lithophane is a photograph printed as varying thickness rather than ink - it looks like a pale panel until it is lit from behind, and then the image appears. Made from a photo you send us. Best results come from bright, high-contrast pictures with a clear subject.",
+      "description": "A lithophane is a photograph printed as varying thickness rather than ink - it looks like a pale panel until it is lit from behind, and then the image appears. The frame measures 13cm x 18cm, and the printed panel is 180:127 - close to A4 proportions.",
       "images": [
         "assets/images/products/placeholder-lightbox.svg"
       ],
@@ -64,35 +54,7 @@
           "label": "Your photograph",
           "required": true,
           "accept": "image/*",
-          "help": "Bright, high contrast, plain background, subject large in the frame. Dark or busy photos do not render well. We will tell you before printing if yours will not work."
-        },
-        {
-          "id": "caption",
-          "type": "text",
-          "label": "Caption or name (optional)",
-          "maxLength": 24,
-          "required": false,
-          "help": "Printed beneath the image."
-        },
-        {
-          "id": "baseColour",
-          "type": "select",
-          "label": "Base colour",
-          "required": true,
-          "choices": [
-            {
-              "value": "walnut",
-              "label": "Walnut"
-            },
-            {
-              "value": "white",
-              "label": "Matte White"
-            },
-            {
-              "value": "black",
-              "label": "Matte Black"
-            }
-          ]
+          "help": "Best results come from a photo in roughly 180:127 proportions (about A4 shape) - bright, high contrast, plain background, subject large in the frame. Dark or busy photos do not render well. We will tell you before printing if yours will not work."
         },
         {
           "id": "giftNote",
@@ -113,7 +75,7 @@
       "leadTime": "5-7 working days",
       "featured": true,
       "shortDescription": "A verse of your choosing, lit softly from behind.",
-      "description": "A layered panel carrying the words you choose, lit from behind so the text glows. Suited to baptisms, confirmations, weddings and Christmas - or simply a verse someone returns to.",
+      "description": "A layered panel carrying the words you choose, lit from behind so the text glows. The frame measures 14.4cm x 19.5cm. If your text does not sit neatly in those proportions we will do our best to fit everything in.",
       "images": [
         "assets/images/products/placeholder-lightbox.svg"
       ],
@@ -122,9 +84,9 @@
           "id": "verseText",
           "type": "textarea",
           "label": "Verse text",
-          "maxLength": 120,
+          "maxLength": 240,
           "required": true,
-          "help": "The words themselves. Printed exactly as typed - please check carefully."
+          "help": "Up to 240 characters. Printed exactly as typed - please check it carefully."
         },
         {
           "id": "verseRef",
@@ -135,50 +97,18 @@
           "placeholder": "e.g. Isaiah 40:31"
         },
         {
-          "id": "nameText",
-          "type": "text",
-          "label": "Name (optional)",
-          "maxLength": 20,
-          "required": false,
-          "help": "For dedications - a name, or a couple's names."
-        },
-        {
-          "id": "font",
+          "id": "orientation",
           "type": "select",
-          "label": "Font style",
+          "label": "Orientation",
           "required": true,
           "choices": [
             {
-              "value": "serif",
-              "label": "Classic Serif"
+              "value": "vertical",
+              "label": "Vertical (portrait)"
             },
             {
-              "value": "script",
-              "label": "Flowing Script"
-            },
-            {
-              "value": "sans",
-              "label": "Modern Sans"
-            }
-          ]
-        },
-        {
-          "id": "baseColour",
-          "type": "select",
-          "label": "Base colour",
-          "required": true,
-          "choices": [
-            {
-              "value": "walnut",
-              "label": "Walnut"
-            },
-            {
-              "value": "white",
-              "label": "Matte White"
-            },
-            {
-              "value": "black",
-              "label": "Matte Black"
+              "value": "horizontal",
+              "label": "Horizontal (landscape)"
             }
           ]
         },
@@ -187,20 +117,21 @@
           "type": "textarea",
           "label": "Gift note",
           "maxLength": 200,
-          "required": false
+          "required": false,
+          "help": "Hand-written on a card and included in the parcel."
         }
       ]
     },
     {
       "id": "plaque-occasion",
-      "slug": "occasion-plaque",
-      "name": "Occasion Plaque",
+      "slug": "location-plaque",
+      "name": "Location Plaque",
       "category": "plaques",
       "price": 33,
       "leadTime": "7-10 working days",
       "featured": true,
-      "shortDescription": "A made-to-order plaque marking a graduation, baptism or milestone.",
-      "description": "A substantial keepsake plaque, designed around the occasion and the person. Graduations, baptisms, dedications, anniversaries - or something else entirely. Because each plaque is laid out individually, tell us as much as you can and we will design it around your words.",
+      "shortDescription": "A plaque marking a place that matters, and the day it did.",
+      "description": "A keepsake plaque built around a place - where you were married, baptised, graduated, or simply somewhere that means something. Tell us the location and we design the plaque around it.",
       "images": [
         "assets/images/products/placeholder-plaque.svg"
       ],
@@ -234,12 +165,12 @@
           ]
         },
         {
-          "id": "nameText",
+          "id": "location",
           "type": "text",
-          "label": "Name",
-          "maxLength": 30,
+          "label": "Location",
+          "maxLength": 60,
           "required": true,
-          "help": "The name of the person it is for."
+          "help": "The place this plaque marks - a church, a address, a city, wherever it was."
         },
         {
           "id": "dateText",
@@ -250,32 +181,41 @@
           "placeholder": "e.g. 14 June 2026"
         },
         {
-          "id": "message",
-          "type": "textarea",
-          "label": "Message or verse",
-          "maxLength": 200,
+          "id": "mapPin",
+          "type": "select",
+          "label": "Map pin style",
           "required": false,
-          "help": "Anything you would like on the plaque - a verse, a line, a dedication."
+          "choices": [
+            {
+              "value": "heart",
+              "label": "Heart"
+            },
+            {
+              "value": "classic",
+              "label": "Classic map pin"
+            }
+          ]
         },
         {
           "id": "giftNote",
           "type": "textarea",
           "label": "Gift note",
           "maxLength": 200,
-          "required": false
+          "required": false,
+          "help": "Hand-written on a card and included in the parcel."
         }
       ]
     },
     {
       "id": "acrylic-verse",
-      "slug": "acrylic-verse",
-      "name": "Acrylic Verse",
-      "category": "acrylic-verse",
+      "slug": "acrylic-verse-keychain",
+      "name": "Acrylic Verse Keychain",
+      "category": "keychains",
       "price": 6.9,
       "leadTime": "3-5 working days",
       "featured": true,
-      "shortDescription": "A standing verse piece, in three sizes.",
-      "description": "A small standing piece carrying a verse of your choosing - sized for a desk, a shelf or a bedside table. The larger sizes give the words more room to breathe.",
+      "shortDescription": "A slim acrylic keychain carrying a verse, in three sizes.",
+      "description": "A small acrylic keychain printed with a verse of your choosing. The larger sizes give the words more room, so a longer passage needs a bigger piece.",
       "images": [
         "assets/images/products/placeholder-acrylic.svg"
       ],
@@ -304,27 +244,35 @@
           ]
         },
         {
+          "id": "verseText",
+          "type": "textarea",
+          "required": true,
+          "label": "Verse text",
+          "maxLengthFrom": {
+            "option": "size",
+            "map": {
+              "small": 105,
+              "medium": 140,
+              "big": 300
+            }
+          },
+          "help": "The limit changes with the size you pick: 105 characters on small, 140 on medium, 300 on large."
+        },
+        {
           "id": "verseRef",
           "type": "text",
           "label": "Verse reference",
           "maxLength": 30,
-          "required": true,
-          "placeholder": "e.g. Psalm 23:1"
-        },
-        {
-          "id": "verseText",
-          "type": "textarea",
-          "label": "Verse text (optional)",
-          "maxLength": 90,
           "required": false,
-          "help": "Leave blank for the reference alone. Shorter verses suit the smaller sizes."
+          "placeholder": "e.g. Psalm 23:1"
         },
         {
           "id": "giftNote",
           "type": "textarea",
           "label": "Gift note",
           "maxLength": 200,
-          "required": false
+          "required": false,
+          "help": "Hand-written on a card and included in the parcel."
         }
       ]
     },
@@ -343,11 +291,19 @@
       ],
       "options": [
         {
+          "id": "verseText",
+          "type": "textarea",
+          "label": "Verse text",
+          "maxLength": 120,
+          "required": true,
+          "help": "Printed exactly as typed - please check it carefully."
+        },
+        {
           "id": "verseRef",
           "type": "text",
           "label": "Verse reference",
           "maxLength": 24,
-          "required": true,
+          "required": false,
           "placeholder": "e.g. Psalm 23:1"
         },
         {
@@ -365,67 +321,16 @@
           "required": true,
           "choices": [
             {
-              "value": "cream",
-              "label": "Cream"
+              "value": "white",
+              "label": "White"
             },
             {
-              "value": "gold",
-              "label": "Gold"
+              "value": "red",
+              "label": "Red"
             },
             {
-              "value": "navy",
-              "label": "Navy"
-            },
-            {
-              "value": "burgundy",
-              "label": "Burgundy"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "bookmark-breadclip",
-      "slug": "breadclip-bookmark",
-      "name": "Breadclip Bookmark",
-      "category": "bookmarks",
-      "price": 3,
-      "leadTime": "3-5 working days",
-      "shortDescription": "A bookmark shaped like a breadclip, clipping neatly onto the page.",
-      "description": "Shaped like the humble bread tag, this bookmark clips onto the page rather than sitting loose in it - so it stays exactly where you left off.",
-      "images": [
-        "assets/images/products/placeholder-bookmark.svg"
-      ],
-      "options": [
-        {
-          "id": "nameText",
-          "type": "text",
-          "label": "Name or short text (optional)",
-          "maxLength": 14,
-          "required": false,
-          "help": "Space is tight on a clip - short words work best."
-        },
-        {
-          "id": "colour",
-          "type": "select",
-          "label": "Colour",
-          "required": true,
-          "choices": [
-            {
-              "value": "cream",
-              "label": "Cream"
-            },
-            {
-              "value": "gold",
-              "label": "Gold"
-            },
-            {
-              "value": "navy",
-              "label": "Navy"
-            },
-            {
-              "value": "burgundy",
-              "label": "Burgundy"
+              "value": "blue",
+              "label": "Blue"
             }
           ]
         }
@@ -495,27 +400,43 @@
           "id": "plateText",
           "type": "text",
           "label": "Plate text",
-          "maxLength": 10,
+          "maxLength": 8,
           "required": true,
-          "help": "Printed exactly as typed, including spacing."
+          "help": "Up to 8 characters, printed exactly as typed including spacing."
+        },
+        {
+          "id": "lines",
+          "type": "select",
+          "label": "Layout",
+          "required": true,
+          "choices": [
+            {
+              "value": "1line",
+              "label": "1 line"
+            },
+            {
+              "value": "2line",
+              "label": "2 lines"
+            }
+          ]
         },
         {
           "id": "colour",
           "type": "select",
-          "label": "Colour",
+          "label": "Plate colour",
           "required": true,
           "choices": [
             {
-              "value": "white",
-              "label": "White"
-            },
-            {
               "value": "black",
-              "label": "Black"
+              "label": "Black plate"
             },
             {
-              "value": "yellow",
-              "label": "Yellow"
+              "value": "red",
+              "label": "Red plate"
+            },
+            {
+              "value": "white",
+              "label": "White plate"
             }
           ]
         }
@@ -549,10 +470,6 @@
           "required": true,
           "choices": [
             {
-              "value": "black",
-              "label": "Black"
-            },
-            {
               "value": "red",
               "label": "Red"
             },
@@ -561,8 +478,8 @@
               "label": "Blue"
             },
             {
-              "value": "yellow",
-              "label": "Yellow"
+              "value": "black",
+              "label": "Black"
             }
           ]
         }
@@ -582,70 +499,26 @@
       ],
       "options": [
         {
-          "id": "nameText",
-          "type": "text",
-          "label": "Text (optional)",
-          "maxLength": 12,
-          "required": false,
-          "help": "Short words only - there is not much room."
-        },
-        {
           "id": "colour",
           "type": "select",
           "label": "Colour",
           "required": true,
           "choices": [
             {
-              "value": "cream",
-              "label": "Cream"
+              "value": "white",
+              "label": "White"
+            },
+            {
+              "value": "red",
+              "label": "Red"
             },
             {
               "value": "blue",
               "label": "Blue"
-            },
-            {
-              "value": "green",
-              "label": "Green"
-            },
-            {
-              "value": "pink",
-              "label": "Pink"
             }
           ]
         }
       ]
-    },
-    {
-      "id": "clicker",
-      "slug": "clicker",
-      "name": "Clicker",
-      "category": "clickers",
-      "price": 5,
-      "leadTime": "3-5 working days",
-      "shortDescription": "A small tactile clicker, in three designs.",
-      "description": "A little printed clicker that sits in the hand and clicks - good for restless fingers, and small enough to live in a pocket.",
-      "images": [
-        "assets/images/products/placeholder-clicker.svg"
-      ],
-      "options": [
-        {
-          "id": "design",
-          "type": "select",
-          "label": "Design",
-          "required": true,
-          "choices": [
-            {
-              "value": "tennis",
-              "label": "Tennis ball"
-            },
-            {
-              "value": "pickleball",
-              "label": "Pickleball"
-            }
-          ]
-        }
-      ],
-      "_priceUnconfirmed": "Price cell is blank in the cost calculator. $5 carried over from the previous version - CONFIRM OR CORRECT."
     }
   ]
 }
