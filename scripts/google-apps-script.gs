@@ -54,7 +54,10 @@
 // ---------------------------------------------------------------------------
 // SETTINGS - change these
 // ---------------------------------------------------------------------------
-var OWNER_EMAIL = 'CHANGE-ME@example.com';   // where new orders are sent
+// Where new orders are sent. For more than one recipient, separate them with
+// commas - every address listed gets the full order email:
+//   var OWNER_EMAIL = 'jl.alias919@gmail.com, someone.else@gmail.com';
+var OWNER_EMAIL = 'jl.alias919@gmail.com';
 var SHOP_NAME   = 'Layered by Light';
 var SHEET_NAME  = 'Orders';
 var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots and customer photos are filed here
@@ -62,7 +65,7 @@ var DRIVE_FOLDER = 'Layered by Light payments';   // payment screenshots and cus
 // Bump this whenever the script changes. Open the /exec URL in a browser and
 // this is what it reports, so you can always tell which version is actually
 // deployed - saving is not the same as deploying.
-var SCRIPT_VERSION = '2026-09-12 photos';
+var SCRIPT_VERSION = '2026-09-12 photos + multi-recipient';
 
 // ---------------------------------------------------------------------------
 
@@ -87,7 +90,7 @@ function doPost(e) {
   } catch (err) {
     // Still try to tell the owner something arrived and broke.
     try {
-      MailApp.sendEmail(OWNER_EMAIL, '[' + SHOP_NAME + '] Order failed to record',
+      MailApp.sendEmail(recipients_(), '[' + SHOP_NAME + '] Order failed to record',
         'An order came in but could not be processed.\n\nError: ' + err +
         '\n\nRaw data:\n' + (e && e.postData ? e.postData.contents : '(none)'));
     } catch (ignored) {}
@@ -244,7 +247,7 @@ function emailOwner_(order, proofUrl, photos) {
   ]).filter(function (l) { return l !== ''; }).join('\n');
 
   MailApp.sendEmail({
-    to: OWNER_EMAIL,
+    to: recipients_(),
     replyTo: order.customer.email,
     subject: '[' + SHOP_NAME + '] PAID order ' + order.reference + ' - ' +
              money_(order.total) + ' - ' + order.customer.name,
@@ -286,13 +289,25 @@ function emailCustomer_(order) {
 
   MailApp.sendEmail({
     to: order.customer.email,
-    replyTo: OWNER_EMAIL,
+    replyTo: replyAddress_(),
     subject: 'Your ' + SHOP_NAME + ' order ' + order.reference + ' - payment received',
     body: body
   });
 }
 
 // --- util ------------------------------------------------------------------
+
+// Reply-To takes a single address, so customer replies go to the first one.
+function replyAddress_() {
+  return String(OWNER_EMAIL).split(',')[0].trim();
+}
+
+function recipients_() {
+  return String(OWNER_EMAIL).split(',')
+    .map(function (a) { return a.trim(); })
+    .filter(function (a) { return a; })
+    .join(',');
+}
 
 function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
