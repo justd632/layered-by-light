@@ -6,8 +6,9 @@
 
    Supported option types: text | textarea | select | file
    Optional keys: required, maxLength, placeholder, help, accept,
-                  choices[{value,label,priceDelta,image}] - an `image` on a
-                  choice swaps the main product photo when it is selected,
+                  choices[{value,label,priceDelta,image,soldOut}] - an `image`
+                  on a choice swaps the main product photo when it is selected;
+                  soldOut:true shows the choice but stops it being ordered,
                   maxLengthFrom {option, map} - character limit that follows
                   another option's value, e.g. a verse whose length depends on
                   the size chosen. Overrides maxLength while that option is set.
@@ -34,9 +35,11 @@
         (opt.required ? '' : '<option value="">No preference</option>') +
         (opt.choices || []).map(function (c) {
           var extra = c.priceDelta ? ' (+' + LBL.money(c.priceDelta) + ')' : '';
+          var gone = c.soldOut ? ' \u2014 sold out' : '';
           return '<option value="' + LBL.escapeHtml(c.value) + '" data-price-delta="' + (c.priceDelta || 0) + '"' +
-                 (c.image ? ' data-image="' + LBL.escapeHtml(c.image) + '"' : '') + '>' +
-                 LBL.escapeHtml(c.label) + extra + '</option>';
+                 (c.image ? ' data-image="' + LBL.escapeHtml(c.image) + '"' : '') +
+                 (c.soldOut ? ' disabled data-sold-out="1"' : '') + '>' +
+                 LBL.escapeHtml(c.label) + extra + gone + '</option>';
         }).join('') +
         '</select>';
     } else if (opt.type === 'textarea') {
@@ -84,6 +87,20 @@
 
   // A choice can carry its own photo - picking it shows that version of the
   // piece, so the customer sees what they are actually ordering.
+  // Some browsers will happily land on a disabled option. Move off it.
+  function skipSoldOut() {
+    if (!form) return;
+    var selects = form.querySelectorAll('select[data-option-id]');
+    for (var i = 0; i < selects.length; i++) {
+      var sel = selects[i];
+      var chosen = sel.options[sel.selectedIndex];
+      if (!chosen || !chosen.disabled) continue;
+      for (var k = 0; k < sel.options.length; k++) {
+        if (!sel.options[k].disabled) { sel.selectedIndex = k; break; }
+      }
+    }
+  }
+
   function refreshImage() {
     var img = document.querySelector('[data-product-image]');
     if (!img || !form) return;
@@ -142,7 +159,11 @@
       var value = opt.type === 'file' ? (file ? file.name : '') : input.value.trim();
       var message = '';
       var limit = limitFor(opt);
-      if (opt.required && !value) message = 'Please fill this in.';
+      if (opt.type === 'select' && input.options[input.selectedIndex] &&
+          input.options[input.selectedIndex].getAttribute('data-sold-out')) {
+        message = 'That option is sold out. Please choose another.';
+      }
+      else if (opt.required && !value) message = 'Please fill this in.';
       else if (file && !/^image\//.test(file.type)) message = 'That is not an image. Please choose a photo.';
       else if (file && file.size > MAX_PHOTO_BYTES) message = 'That photo is larger than 5MB. Please choose a smaller one.';
       else if (limit && value.length > limit) message = 'Please keep this to ' + limit + ' characters.';
@@ -259,6 +280,7 @@
     form.addEventListener('change', function () { refreshPrice(); refreshImage(); });
     form.addEventListener('submit', handleSubmit);
 
+    skipSoldOut();
     refreshCounters();
     refreshPrice();
     refreshImage();

@@ -232,6 +232,29 @@ window.LBL_PRODUCTS = {
           ]
         },
         {
+          "id": "colour",
+          "type": "select",
+          "label": "Colour",
+          "required": true,
+          "help": "Red and black are out of stock at the moment.",
+          "choices": [
+            {
+              "value": "clear",
+              "label": "Clear"
+            },
+            {
+              "value": "red",
+              "label": "Red",
+              "soldOut": true
+            },
+            {
+              "value": "black",
+              "label": "Black",
+              "soldOut": true
+            }
+          ]
+        },
+        {
           "id": "verseText",
           "type": "textarea",
           "required": true,
